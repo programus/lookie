@@ -1,0 +1,82 @@
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    tools:context=".MainActivity" >
+
+    <RelativeLayout
+        android:id="@+id/controlView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="visible" >
+
+        <org.programus.nxt.android.lookie_rc.widgets.SpeedBar
+            android:id="@+id/leftSpeedBar"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:layout_marginBottom="@dimen/speed_margin_vertical"
+            android:layout_marginLeft="@dimen/speed_margin_horizontal"
+            android:layout_marginRight="@dimen/speed_margin_horizontal"
+            android:layout_marginTop="@dimen/speed_margin_vertical" />
+
+        <org.programus.nxt.android.lookie_rc.widgets.SpeedBar
+            android:id="@+id/rightSpeedBar"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:layout_alignParentRight="true"
+            android:layout_centerVertical="true"
+            android:layout_marginBottom="@dimen/speed_margin_vertical"
+            android:layout_marginLeft="@dimen/speed_margin_horizontal"
+            android:layout_marginRight="@dimen/speed_margin_horizontal"
+            android:layout_marginTop="@dimen/speed_margin_vertical" />
+    </RelativeLayout>
+
+    <RelativeLayout
+        android:id="@+id/setupView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" >
+
+        <Button
+            android:id="@+id/connectButton"
+            style="?android:attr/buttonStyleSmall"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerInParent="true"
+            android:text="@string/connect_device_label" />
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_above="@id/connectButton"
+            android:layout_margin="@dimen/prompt_margin"
+            android:orientation="vertical" >
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/connect_prompt" />
+        </LinearLayout>
+
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_below="@id/connectButton" >
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_margin="@dimen/log_margin" >
+
+                <TextView
+                    android:id="@+id/logText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/log_text_color" />
+
+            </LinearLayout>
+        </ScrollView>
+
+    </RelativeLayout>
+
+</RelativeLayout>

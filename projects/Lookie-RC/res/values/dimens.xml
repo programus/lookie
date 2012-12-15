@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="log_margin">5dip</dimen>
+    <dimen name="main_margin">0dip</dimen>
+    <dimen name="prompt_margin">10dip</dimen>
+    <dimen name="speed_margin_horizontal">10pt</dimen>
+    <dimen name="speed_margin_vertical">50px</dimen>
+</resources>

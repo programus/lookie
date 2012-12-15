@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="log_text_color">#7f000000</color>
+    <color name="speedbar_default_color">#7f00ff00</color>
+    <color name="speedbar_default_stroke_color">#7f7f7f7f</color>
+    <color name="speedbar_default_indicator_color">#9020d0fa</color>
+    <color name="speedbar_default_overflow_color">#7fa00000</color>
+    
+</resources>
