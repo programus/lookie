@@ -7,7 +7,7 @@ import java.io.IOException;
 import lejos.pc.comm.NXTCommFactory;
 import lejos.pc.comm.NXTConnector;
 
-import org.programus.nxt.android.lookie_rc.utils.Constants;
+import org.programus.lookie.lib.utils.Constants;
 
 import android.os.Bundle;
 import android.os.Handler;
@@ -23,6 +23,9 @@ public class RobotBtCommunicator implements Constants{
 	
 	private DataInputStream in;
 	private DataOutputStream out;
+	
+	private CommandSender sender;
+	private CommandReceiver receiver;
 	
 	public RobotBtCommunicator(Handler handler) {
 		this.handler = handler;
@@ -46,23 +49,34 @@ public class RobotBtCommunicator implements Constants{
 						connectStatus = CONN_STATUS_CONNECTED;
 						in = connector.getDataIn();
 						out = connector.getDataOut();
+						sender = new CommandSender(out, handler);
+						new Thread(sender, "Signal Sender Thread").start();
+						receiver = new CommandReceiver(in, handler);
+						new Thread(receiver, "Data Receiver Thread").start();
 					} else {
 						connectStatus = CONN_STATUS_DISCONNECTED;
 					}
 					
-					Bundle b = new Bundle();
-					b.putInt(Constants.KEY_ROBOT_CONNECT_STATUS, connectStatus);
-					
-					Message msg = new Message();
-					msg.setData(b);
-					msg.what = Constants.MSG_WHAT_ROBOT_CONNECT;
-					handler.sendMessage(msg);
+					notifyConnected();
 				}
 			}, "Robot Connect Thread").start();
 		}
 	}
 	
 	public void end() throws IOException {
+		this.sender.end();
+		this.receiver.end();
+		Thread.yield();
 		this.connector.close();
+	}
+	
+	private void notifyConnected() {
+		Bundle b = new Bundle();
+		b.putInt(Constants.KEY_ROBOT_CONNECT_STATUS, connectStatus);
+		
+		Message msg = new Message();
+		msg.setData(b);
+		msg.what = Constants.MSG_WHAT_ROBOT_CONNECT;
+		handler.sendMessage(msg);
 	}
 }

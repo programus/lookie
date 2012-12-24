@@ -40,6 +40,13 @@ public class SpeedBar extends View {
 	final private Point area = new Point();
 	final private PointF margin = new PointF();
 	final private RectF border = new RectF();
+	
+	private OnValueChangedListener onValueChangedListener;
+	
+	public static interface OnValueChangedListener {
+		void onTargetValueChanged(SpeedBar sb, float oldValue, float newValue, float rawValue);
+		void onActualValueChanged(SpeedBar sb, float oldValue, float newValue, float rawValue);
+	}
 
 	public SpeedBar(Context context, AttributeSet attrs, int defStyle) {
 		super(context, attrs, defStyle);
@@ -153,10 +160,14 @@ public class SpeedBar extends View {
 	}
 
 	public void setTargetValue(float targetValue) {
+		float rawValue = targetValue;
 		if (targetValue > MAX_ABS_VALUE) {
 			targetValue = MAX_ABS_VALUE;
 		} else if (targetValue < -MAX_ABS_VALUE) {
 			targetValue = -MAX_ABS_VALUE;
+		}
+		if (this.onValueChangedListener != null && this.targetValue != rawValue) {
+			this.onValueChangedListener.onTargetValueChanged(this, this.targetValue, targetValue, rawValue);
 		}
 		this.targetValue = targetValue;
 	}
@@ -175,6 +186,7 @@ public class SpeedBar extends View {
 	}
 
 	public void setActualValue(float actualValue) {
+		float rawValue = actualValue;
 		if (actualValue > MAX_ABS_VALUE) {
 			this.overflow = true;
 			actualValue = MAX_ABS_VALUE;
@@ -183,6 +195,9 @@ public class SpeedBar extends View {
 			actualValue = -MAX_ABS_VALUE;
 		} else {
 			this.overflow = false;
+		}
+		if (this.onValueChangedListener != null && this.actualValue != rawValue) {
+			this.onValueChangedListener.onActualValueChanged(this, this.actualValue, actualValue, rawValue);
 		}
 		this.actualValue = actualValue;
 	}
@@ -215,6 +230,14 @@ public class SpeedBar extends View {
 		this.border.right = this.area.x - this.margin.x;
 		this.border.top = this.margin.y;
 		this.border.bottom = this.area.y - this.margin.y;
+	}
+
+	public OnValueChangedListener getOnValueChangedListener() {
+		return onValueChangedListener;
+	}
+
+	public void setOnValueChangedListener(OnValueChangedListener listener) {
+		this.onValueChangedListener = listener;
 	}
 
 }

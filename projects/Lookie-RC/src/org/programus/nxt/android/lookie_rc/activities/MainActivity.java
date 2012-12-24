@@ -2,10 +2,15 @@ package org.programus.nxt.android.lookie_rc.activities;
 
 import java.io.IOException;
 
+import org.programus.lookie.lib.comm.CommandMessage;
+import org.programus.lookie.lib.utils.Constants;
+import org.programus.lookie.lib.utils.SimpleQueue;
 import org.programus.nxt.android.lookie_rc.R;
+import org.programus.nxt.android.lookie_rc.comm.DataBuffer;
+import org.programus.nxt.android.lookie_rc.comm.NXTData;
 import org.programus.nxt.android.lookie_rc.comm.RobotBtCommunicator;
-import org.programus.nxt.android.lookie_rc.utils.Constants;
 import org.programus.nxt.android.lookie_rc.widgets.SpeedBar;
+import org.programus.nxt.android.lookie_rc.widgets.SpeedBar.OnValueChangedListener;
 
 import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
@@ -32,6 +37,7 @@ public class MainActivity extends Activity {
 	
 	private SpeedBar[] speeds = new SpeedBar[2];
 	private float[] speedTargets = new float[2];
+	private DataBuffer dbuff = DataBuffer.getInstance();
 	
 	private View setupView;
 	private View controlView;
@@ -51,26 +57,68 @@ public class MainActivity extends Activity {
 		}
 		@Override
 		public void handleMessage(Message msg) {
+			Bundle b = msg.getData();
 			switch (msg.what) {
 			case Constants.MSG_WHAT_ROBOT_CONNECT: {
-				Bundle b = msg.getData();
 				int status = b.getInt(Constants.KEY_ROBOT_CONNECT_STATUS);
 				p.logText.append(status == Constants.CONN_STATUS_CONNECTED ? "NXT Connected!" : "NXT Connected failed.");
 				p.logText.append(Constants.BR);
-				p.robotConnected(true);
+				p.robotConnected(status == Constants.CONN_STATUS_CONNECTED);
+				break;
+			}
+			case Constants.MSG_WHAT_IOEXCEPTION: {
+				IOException e = (IOException) b.getSerializable(Constants.KEY_IOEXCEPTION);
+				String text = b.getString(Constants.KEY_MESSAGE);
+				p.logText.append(text);
+				p.logText.append(Constants.BR);
+				p.logText.append(e.getMessage());
+				Log.e(TAG, text, e);
+				break;
+			}
+			case Constants.MSG_WHAT_DATA_READ: {
+				NXTData data = (NXTData) b.getSerializable(Constants.KEY_NXT_DATA);
+				int dir = data.getDir();
+				float speed = data.getSpeed();
+				Log.d(TAG, String.format("Actual: dir: %d, v: %f", dir, speed));
+				p.speeds[dir].setActualValue(speed);
+				p.speeds[dir].invalidate();
 				break;
 			}
 			}
 		}
+	}
+	
+	private static class SpeedBarValueChangedListener implements OnValueChangedListener {
+		private SimpleQueue<CommandMessage> q;
+		private int command;
+		
+		public SpeedBarValueChangedListener(SimpleQueue<CommandMessage> q, int cmd) {
+			this.q = q;
+			this.command = cmd;
+		}
+		
+		@Override
+		public void onTargetValueChanged(SpeedBar sb, float oldValue, float newValue, float rawValue) {
+			if (oldValue != newValue) {
+				CommandMessage cmd = new CommandMessage();
+				cmd.setCommand(command);
+				cmd.setData(newValue);
+				this.q.offer(cmd);
+			}
+		}
+
+		@Override
+		public void onActualValueChanged(SpeedBar sb, float oldValue, float newValue, float rawValue) {
+		}
+		
 	}
 
 	private OnClickListener connectClickListener = new OnClickListener() {
 		@Override
 		public void onClick(View v) {
 			if (turnOnBt()) {
-				// TODO Test code
-//				connectDevices();
-				robotConnected(true);
+				connectDevices();
+//				robotConnected(true);
 			}
 		}
 	};
@@ -245,6 +293,10 @@ public class MainActivity extends Activity {
 		
 		this.devicesConnected();
 		
+		SimpleQueue<CommandMessage>[] qs = dbuff.getSendQueues();
+		for (int i = 0; i < this.speeds.length; i++) {
+			this.speeds[i].setOnValueChangedListener(new SpeedBarValueChangedListener(qs[i], i));
+		}
 		this.connectButton.setOnClickListener(connectClickListener);
 		this.controlView.setOnTouchListener(speedControlTouchListener);
 	}
