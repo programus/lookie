@@ -80,8 +80,19 @@ public class MainActivity extends Activity {
 				int dir = data.getDir();
 				float speed = data.getSpeed();
 				Log.d(TAG, String.format("Actual: dir: %d, v: %f", dir, speed));
-				p.speeds[dir].setActualValue(speed);
-				p.speeds[dir].invalidate();
+				switch (dir) {
+				case Constants.LEFT:
+				case Constants.RIGHT:
+					p.speeds[dir].setActualValue(speed);
+					p.speeds[dir].invalidate();
+					break;
+				case Constants.END:
+					p.disconnectRobot();
+					break;
+				default:
+					Log.w(TAG, "Wrong Command");
+					break;
+				}
 				break;
 			}
 			}
@@ -247,6 +258,22 @@ public class MainActivity extends Activity {
 		nxtCommunicator.connect();
 	}
 	
+	private void disconnectRobot() {
+		if (this.connectedRobot) {
+			logText.append("Disconnecting from NXT...");
+			logText.append(Constants.BR);
+			try {
+				this.nxtCommunicator.end();
+			} catch (IOException e) {
+				logText.append(e.getMessage());
+				logText.append(Constants.BR);
+			}
+			logText.append("NXT disconnected.");
+			logText.append(Constants.BR);
+			this.robotConnected(false);
+		}
+	}
+	
 	private void devicesConnected() {
 		if (this.connectedRobot && this.connectedCamera) {
 			this.setupView.setVisibility(View.GONE);
@@ -339,14 +366,21 @@ public class MainActivity extends Activity {
 
 	@Override
 	protected void onDestroy() {
-		Log.d(TAG, "Activity destroying...");
-		if (this.nxtCommunicator != null) {
-			try {
-				this.nxtCommunicator.end();
-			} catch (IOException e) {
-				Log.e(TAG, "Close connection with robot error.", e);
-			}
-		}
 		super.onDestroy();
+	}
+
+	@Override
+	protected void onPause() {
+		super.onPause();
+	}
+
+	@Override
+	protected void onStop() {
+		Log.d(TAG, "Activity stopping...");
+		super.onStop();
+		if (this.setupView.getVisibility() != View.VISIBLE) {
+			this.disconnectRobot();
+			this.finish();
+		}
 	}
 }

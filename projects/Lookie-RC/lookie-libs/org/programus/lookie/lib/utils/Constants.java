@@ -20,6 +20,7 @@ public interface Constants {
 	
 	int LEFT = 0;
 	int RIGHT = 1;
+	int END = 0x00ff;
 	
 	int SEND_Q_SIZE = 1;
 	int READ_Q_SIZE = 1;

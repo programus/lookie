@@ -7,11 +7,12 @@ import org.programus.lookie.lib.utils.SimpleQueue;
 
 public class DataBuffer {
 	private SimpleQueue<CommandMessage>[] readQueues;
+	public final static int CONN_CMD_INDEX = 3;
 	
 	private static DataBuffer db = new DataBuffer();
 	@SuppressWarnings("unchecked")
 	private DataBuffer() {
-		this.readQueues = new SimpleQueue[3];
+		this.readQueues = new SimpleQueue[4];
 		for (int i = 0; i < this.readQueues.length; i++) {
 			this.readQueues[i] = new FixedLengthQueue<CommandMessage>(Constants.READ_Q_SIZE);
 		}

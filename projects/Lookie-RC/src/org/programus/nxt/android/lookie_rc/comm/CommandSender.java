@@ -50,6 +50,22 @@ public class CommandSender implements Runnable {
 				Thread.yield();
 			}
 		}
+		this.sendEndSignal();
+	}
+	
+	private void sendEndSignal() {
+		CommandMessage cmd = new CommandMessage();
+		cmd.setCommand(Constants.END);
+		cmd.setData(0);
+		synchronized (out) {
+			try {
+				Log.d(TAG, String.format("Send => %s", cmd.toString()));
+				cmd.send(out);
+				out.flush();
+			} catch (IOException e) {
+				this.notifyException(e);
+			}
+		}
 	}
 	
 	private void notifyException(IOException e) {

@@ -1,5 +1,7 @@
 package org.programus.lookie.lib.utils;
 
+import java.util.Arrays;
+
 public class FixedLengthQueue<E> implements SimpleQueue<E> {
 	private Object[] data;
 	private int inp;
@@ -99,5 +101,11 @@ public class FixedLengthQueue<E> implements SimpleQueue<E> {
 			System.out.println(q);
 		}
 		
+	}
+
+	@Override
+	public void clear() {
+		this.inp = this.outp = 0;
+		Arrays.fill(data, null);
 	}
 }

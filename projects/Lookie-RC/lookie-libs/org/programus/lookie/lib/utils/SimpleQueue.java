@@ -6,4 +6,5 @@ public interface SimpleQueue<E> {
 	E peek();
 	int size();
 	boolean isEmpty();
+	void clear();
 }

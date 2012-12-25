@@ -7,6 +7,7 @@ import lejos.nxt.NXTRegulatedMotor;
 import lejos.nxt.Sound;
 
 import org.programus.lookie.lib.comm.CommandMessage;
+import org.programus.lookie.lib.utils.Constants;
 
 public class CommandSender implements Runnable {
 	private boolean running = true;
@@ -41,6 +42,18 @@ public class CommandSender implements Runnable {
 				}
 			}
 			Thread.yield();
+		}
+		
+		cmd.setCommand(Constants.END);
+		cmd.setData(0);
+		synchronized(out) {
+			try {
+				cmd.send(out);
+				out.flush();
+			} catch (IOException e) {
+				Sound.buzz();
+				e.printStackTrace();
+			}
 		}
 	}
 	

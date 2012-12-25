@@ -7,6 +7,7 @@ import lejos.nxt.LCD;
 import lejos.nxt.Sound;
 
 import org.programus.lookie.lib.comm.CommandMessage;
+import org.programus.lookie.lib.utils.Constants;
 import org.programus.lookie.lib.utils.SimpleQueue;
 
 public class CommandReceiver implements Runnable {
@@ -28,12 +29,20 @@ public class CommandReceiver implements Runnable {
 				}
 			} catch (IOException e) {
 				Sound.buzz();
-				e.printStackTrace();
 			}
 			
 			if (cmd != null) {
 				SimpleQueue<CommandMessage>[] qs = dbuff.getReadQueues();
-				qs[cmd.getCommand()].offer(cmd);
+				int id = cmd.getCommand();
+				switch (id) {
+				case Constants.LEFT:
+				case Constants.RIGHT:
+					qs[id].offer(cmd);
+					break;
+				case Constants.END:
+					qs[DataBuffer.CONN_CMD_INDEX].offer(cmd);
+					break;
+				}
 			}
 			Thread.yield();
 		}
