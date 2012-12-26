@@ -3,20 +3,24 @@ package org.programus.nxj.lookie.nxt.comm;
 import java.io.DataInputStream;
 import java.io.IOException;
 
-import lejos.nxt.LCD;
 import lejos.nxt.Sound;
 
 import org.programus.lookie.lib.comm.CommandMessage;
 import org.programus.lookie.lib.utils.Constants;
 import org.programus.lookie.lib.utils.SimpleQueue;
+import org.programus.nxj.lookie.nxt.utils.Notifiable;
+import org.programus.nxj.lookie.nxt.utils.NotifyTypes;
 
 public class CommandReceiver implements Runnable {
 	private boolean running = true;
 	private DataInputStream in;
 	private DataBuffer dbuff = DataBuffer.getInstance();
 	
-	public CommandReceiver(DataInputStream in) {
+	private Notifiable notifier;
+	
+	public CommandReceiver(DataInputStream in, Notifiable notifier) {
 		this.in = in;
+		this.notifier = notifier;
 	}
 
 	@Override
@@ -29,6 +33,7 @@ public class CommandReceiver implements Runnable {
 				}
 			} catch (IOException e) {
 				Sound.buzz();
+				this.notifier.notifyMessage(NotifyTypes.IOEXCEPTION, e);
 			}
 			
 			if (cmd != null) {

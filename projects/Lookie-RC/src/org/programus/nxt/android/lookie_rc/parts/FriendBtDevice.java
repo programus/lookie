@@ -7,7 +7,7 @@ public class FriendBtDevice {
 	private String friendString;
 	
 	public FriendBtDevice (BluetoothDevice device) {
-		this(device, "\n");
+		this(device, "|");
 	}
 	
 	public FriendBtDevice (BluetoothDevice device, String delimiter) {

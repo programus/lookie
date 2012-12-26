@@ -6,6 +6,7 @@ import org.programus.lookie.lib.comm.CommandMessage;
 import org.programus.lookie.lib.utils.Constants;
 import org.programus.lookie.lib.utils.SimpleQueue;
 import org.programus.nxt.android.lookie_rc.R;
+import org.programus.nxt.android.lookie_rc.comm.CameraBtCommunicator;
 import org.programus.nxt.android.lookie_rc.comm.DataBuffer;
 import org.programus.nxt.android.lookie_rc.comm.NXTData;
 import org.programus.nxt.android.lookie_rc.comm.RobotBtCommunicator;
@@ -43,10 +44,11 @@ public class MainActivity extends Activity {
 	private View controlView;
 	
 	private RobotBtCommunicator nxtCommunicator;
+	private CameraBtCommunicator camCommunicator;
 	private BluetoothAdapter btAdapter;
 	
 	private boolean connectedRobot;
-	private boolean connectedCamera = true; // TODO test code
+	private boolean connectedCamera;
 	
 	private Handler handler = new UIHandler(this);
 	
@@ -64,6 +66,16 @@ public class MainActivity extends Activity {
 				p.logText.append(status == Constants.CONN_STATUS_CONNECTED ? "NXT Connected!" : "NXT Connected failed.");
 				p.logText.append(Constants.BR);
 				p.robotConnected(status == Constants.CONN_STATUS_CONNECTED);
+				if (status == Constants.CONN_STATUS_CONNECTED) {
+					p.connectCamera();
+				}
+				break;
+			}
+			case Constants.MSG_WHAT_CAMERA_CONNECT: {
+				int status = b.getInt(Constants.KEY_CAMERA_CONNECT_STATUS);
+				p.logText.append(status == Constants.CONN_STATUS_CONNECTED ? "Camera Connected!" : "Camera Connected failed.");
+				p.logText.append(Constants.BR);
+				p.cameraConnected(status == Constants.CONN_STATUS_CONNECTED);
 				break;
 			}
 			case Constants.MSG_WHAT_IOEXCEPTION: {
@@ -128,8 +140,8 @@ public class MainActivity extends Activity {
 		@Override
 		public void onClick(View v) {
 			if (turnOnBt()) {
-				connectDevices();
-//				robotConnected(true);
+//				connectDevices();
+				connectRobot();
 			}
 		}
 	};
@@ -244,9 +256,35 @@ public class MainActivity extends Activity {
 			this.speeds[index].invalidate();
 		}
 	}
+//	
+//	private void connectDevices() {
+//		connectRobot();
+//		connectCamera();
+//	}
 	
-	private void connectDevices() {
-		connectRobot();
+	private void connectCamera() {
+		if (camCommunicator == null) {
+			this.camCommunicator = new CameraBtCommunicator(this.btAdapter, this.handler);
+		}
+		logText.append("Connecting to Camera...");
+		logText.append(Constants.BR);
+		this.camCommunicator.connect();
+	}
+	
+	private void disconnectedCamera() {
+		if (this.connectedCamera) {
+			logText.append("Disconnecting from NXT...");
+			logText.append(Constants.BR);
+			try {
+				this.camCommunicator.end();
+			} catch (IOException e) {
+				logText.append(e.getMessage());
+				logText.append(Constants.BR);
+			}
+			logText.append("Camera disconnected.");
+			logText.append(Constants.BR);
+			this.cameraConnected(false);
+		}
 	}
 	
 	private void connectRobot() {
@@ -288,6 +326,11 @@ public class MainActivity extends Activity {
 	
 	private void robotConnected(boolean isConnected) {
 		this.connectedRobot = isConnected;
+		this.devicesConnected();
+	}
+	
+	private void cameraConnected(boolean isConnected) {
+		this.connectedCamera = isConnected;
 		this.devicesConnected();
 	}
 	
@@ -357,7 +400,8 @@ public class MainActivity extends Activity {
 		super.onActivityResult(requestCode, resultCode, data);
 		if (requestCode == Constants.REQUEST_ENABLE_BT) {
 			if (resultCode == RESULT_OK && this.btAdapter.isEnabled()) {
-				this.connectDevices();
+//				this.connectDevices();
+				this.connectRobot();
 			} else {
 				this.btEnableCancelled();
 			}
@@ -380,6 +424,7 @@ public class MainActivity extends Activity {
 		super.onStop();
 		if (this.setupView.getVisibility() != View.VISIBLE) {
 			this.disconnectRobot();
+			this.disconnectedCamera();
 			this.finish();
 		}
 	}
