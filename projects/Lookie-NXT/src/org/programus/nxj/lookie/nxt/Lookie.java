@@ -59,14 +59,6 @@ public class Lookie {
 				criticalQ.offer(cmd);
 				break;
 			}
-			case NotifyTypes.TOO_NEAR: {
-				CommandMessage cmd = new CommandMessage();
-				cmd.setCommand(Constants.NEAR);
-				cmd.setData(distanceSensor.getDistance());
-				SimpleQueue<CommandMessage> q = DataBuffer.getInstance().getSendQueue();
-				q.offer(cmd);
-				break;
-			}
 			}
 			return true;
 		}
