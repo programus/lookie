@@ -113,6 +113,13 @@ public class MainActivity extends Activity {
 				case Constants.SIZE:
 					p.selectPreviewSize(cmd.getFormat());
 					break;
+				case Constants.LIGHT:
+					if (cmd.getFormat() > 0) {
+						p.turnFlashLightOn();
+					} else {
+						p.turnFlashLightOff();
+					}
+					break;
 				case Constants.END:
 					p.endShow();
 					break;
@@ -214,7 +221,7 @@ public class MainActivity extends Activity {
 			long dt = time - prevSentTime;
 			// the max possible transfer data size during this period
 			long maxDataLimit = Constants.MAX_BPMS * dt;
-			logger.log(String.format("dt: %d, max: %d, size: %d", dt, maxDataLimit, this.prevDataLength));
+//			logger.log(String.format("dt: %d, max: %d, size: %d", dt, maxDataLimit, this.prevDataLength));
 			Log.d(TAG, String.format("dt: %d, max: %d, size: %d", dt, maxDataLimit, this.prevDataLength));
 			if (this.prevDataLength < maxDataLimit || this.prevDataLength == 0) {
 				// last cargo is smaller than the limit
@@ -346,6 +353,40 @@ public class MainActivity extends Activity {
 		params.setPreviewSize(Math.max(size.width, size.height), Math.min(size.width, size.height));
 		this.camera.setParameters(params);
 		this.camera.startPreview();
+	}
+	
+	private void turnFlashLightOn() {
+		if (this.camera != null) {
+			logger.log("Trying to turn on light");
+			Camera.Parameters params = this.camera.getParameters();
+			List<String> modes = params.getSupportedFlashModes();
+			logger.log("Supported flash mode: " + modes);
+			String currMode = params.getFlashMode();
+			logger.log("current flash mode: " + currMode);
+			if (!Camera.Parameters.FLASH_MODE_TORCH.equals(currMode) && modes.contains(Camera.Parameters.FLASH_MODE_TORCH)) {
+				logger.log("turning on light");
+				this.camera.stopPreview();
+				params.setFlashMode(Camera.Parameters.FLASH_MODE_TORCH);
+				this.camera.setParameters(params);
+				this.camera.startPreview();
+				logger.log("light turned on");
+			}
+		}
+	}
+	
+	private void turnFlashLightOff() {
+		if (this.camera != null) {
+			logger.log("Trying to turn off light");
+			Camera.Parameters params = this.camera.getParameters();
+			List<String> modes = params.getSupportedFlashModes();
+			String currMode = params.getFlashMode();
+			if (!Camera.Parameters.FLASH_MODE_OFF.equals(currMode) && modes.contains(Camera.Parameters.FLASH_MODE_OFF)) {
+				this.camera.stopPreview();
+				params.setFlashMode(Camera.Parameters.FLASH_MODE_OFF);
+				this.camera.setParameters(params);
+				this.camera.startPreview();
+			}
+		}
 	}
 	
 	private void stopCameraPreview() {

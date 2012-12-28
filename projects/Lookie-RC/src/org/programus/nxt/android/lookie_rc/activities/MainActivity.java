@@ -30,7 +30,6 @@ import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
-import android.graphics.Color;
 import android.graphics.PointF;
 import android.graphics.Rect;
 import android.hardware.Sensor;
@@ -53,8 +52,11 @@ import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemSelectedListener;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.CompoundButton;
+import android.widget.CompoundButton.OnCheckedChangeListener;
 import android.widget.Spinner;
 import android.widget.TextView;
+import android.widget.ToggleButton;
 
 public class MainActivity extends Activity {
 	private final static String TAG = "Main";
@@ -68,6 +70,7 @@ public class MainActivity extends Activity {
 	private TextView logText;
 	private Spinner deviceSelection;
 	private Spinner previewSizes;
+	private ToggleButton toggleLight;
 	
 	private SpeedBar[] speeds = new SpeedBar[2];
 	private float[] speedTargets = new float[2];
@@ -267,6 +270,16 @@ public class MainActivity extends Activity {
 		
 		@Override
 		public void onNothingSelected(AdapterView<?> parent) {
+		}
+	};
+	
+	private OnCheckedChangeListener toggleLightListener = new OnCheckedChangeListener() {
+		@Override
+		public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+			CameraCommand cmd = new CameraCommand();
+			cmd.setCommand(Constants.LIGHT);
+			cmd.setFormat(isChecked ? 1 : 0);
+			camCommunicator.sendCommand(cmd);
 		}
 	};
 	
@@ -527,8 +540,11 @@ public class MainActivity extends Activity {
 		this.logText = (TextView) this.findViewById(R.id.logText);
 		this.deviceSelection = (Spinner) this.findViewById(R.id.camSelection);
 		this.previewSizes = (Spinner) this.findViewById(R.id.previewSizes);
+		this.toggleLight = (ToggleButton) this.findViewById(R.id.toggleLight);
+		
 		this.deviceSelection.setOnItemSelectedListener(camSelectedListener);
 		this.previewSizes.setOnItemSelectedListener(sizeSelectedListener);
+		this.toggleLight.setOnCheckedChangeListener(toggleLightListener);
 		
 		if (this.turnOnBt()) {
 			this.setupDevicesForSpinner();

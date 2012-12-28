@@ -43,6 +43,7 @@ public interface Constants {
 	int CALIBRATE = 4;
 	int CAMERA = 8;
 	int SIZE = 16;
+	int LIGHT = 32;
 	int END = 0x00ff;
 	
 	int SEND_Q_SIZE = 1;

@@ -55,6 +55,15 @@
                 android:layout_centerHorizontal="true"
                 android:text="@string/exit_control" />
 
+            <ToggleButton
+                android:id="@+id/toggleLight"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignBottom="@id/exitControl"
+                android:layout_toLeftOf="@id/rightSpeedBar"
+                android:textOff="@string/light"
+                android:textOn="@string/light" />
+
         </RelativeLayout>
 
     </FrameLayout>
