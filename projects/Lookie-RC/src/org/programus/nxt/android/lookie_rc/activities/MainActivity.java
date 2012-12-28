@@ -30,6 +30,7 @@ import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
+import android.graphics.Color;
 import android.graphics.PointF;
 import android.graphics.Rect;
 import android.hardware.Sensor;
@@ -66,6 +67,7 @@ public class MainActivity extends Activity {
 	private Button exitControl;
 	private TextView logText;
 	private Spinner deviceSelection;
+	private Spinner previewSizes;
 	
 	private SpeedBar[] speeds = new SpeedBar[2];
 	private float[] speedTargets = new float[2];
@@ -80,6 +82,7 @@ public class MainActivity extends Activity {
 	
 	private SurfaceView cameraSv;
 	private SurfaceHolder cameraSh;
+	private int svBgColor;
 	
 	private SensorManager sensorMgr;
 	private Sensor sensor;
@@ -135,9 +138,13 @@ public class MainActivity extends Activity {
 				IOException e = (IOException) b.getSerializable(Constants.KEY_EXCEPTION);
 				String text = b.getString(Constants.KEY_MESSAGE);
 				Log.e(TAG, text, e);
-				p.logText.append(text);
-				p.logText.append(Constants.BR);
-				p.logText.append(e.getMessage());
+				try {
+					p.logText.append(text);
+					p.logText.append(Constants.BR);
+					p.logText.append(e.getMessage());
+				} catch (Exception ex) {
+					ex.printStackTrace();
+				}
 				p.disconnectCamera();
 				p.disconnectRobot();
 				break;
@@ -184,6 +191,9 @@ public class MainActivity extends Activity {
 					byte[] imageData = cmd.getImageData();
 					Bitmap bmp = p.extractBitmap(imageData, cmd.getWidth(), cmd.getHeight(), cmd.getFormat());
 					p.displayCameraPreview(bmp, cmd.getWidth(), cmd.getHeight());
+					break;
+				case Constants.SIZE:
+					p.fillSizesIntoSpinner(cmd);
 					break;
 				case Constants.END:
 					p.disconnectCamera();
@@ -242,6 +252,17 @@ public class MainActivity extends Activity {
 		@Override
 		public void onItemSelected(AdapterView<?> parent, View view, int pos, long id) {
 			saveCamSelection(pos);
+		}
+		
+		@Override
+		public void onNothingSelected(AdapterView<?> parent) {
+		}
+	};
+	
+	private OnItemSelectedListener sizeSelectedListener = new OnItemSelectedListener() {
+		@Override
+		public void onItemSelected(AdapterView<?> parent, View view, int pos, long id) {
+			changePreviewSize(pos);
 		}
 		
 		@Override
@@ -505,7 +526,10 @@ public class MainActivity extends Activity {
 		this.exitControl = (Button) this.findViewById(R.id.exitControl);
 		this.logText = (TextView) this.findViewById(R.id.logText);
 		this.deviceSelection = (Spinner) this.findViewById(R.id.camSelection);
+		this.previewSizes = (Spinner) this.findViewById(R.id.previewSizes);
 		this.deviceSelection.setOnItemSelectedListener(camSelectedListener);
+		this.previewSizes.setOnItemSelectedListener(sizeSelectedListener);
+		
 		if (this.turnOnBt()) {
 			this.setupDevicesForSpinner();
 		}
@@ -517,6 +541,7 @@ public class MainActivity extends Activity {
 		
 		this.cameraSv = (SurfaceView) this.findViewById(R.id.cameraSurface);
 		this.cameraSh = this.cameraSv.getHolder();
+		this.svBgColor = this.getResources().getColor(android.R.color.background_light);
 		
 		this.sensorMgr = (SensorManager) this.getSystemService(SENSOR_SERVICE);
 		this.sensor = sensorMgr.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
@@ -545,6 +570,32 @@ public class MainActivity extends Activity {
 		this.deviceSelection.setAdapter(adapter);
 		this.deviceSelection.setTag(deviceList);
 		this.loadCamSelection();
+	}
+	
+	private void fillSizesIntoSpinner(CameraCommand cmd) {
+		int count = cmd.getFormat();
+		byte[] data = cmd.getImageData();
+		if (data != null) {
+			String[] sizes = new String[count];
+			for (int i = 0; i < count; i++) {
+				int w = this.readIntFromByteArray(data, i << 3);
+				int h = this.readIntFromByteArray(data, (i << 3) + 4);
+				sizes[i] = String.format("%d x %d", w, h);
+			}
+			
+			ArrayAdapter<String> adapter = new ArrayAdapter<String>(this, android.R.layout.simple_spinner_item, sizes);
+			adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+			this.previewSizes.setAdapter(adapter);
+		}
+	}
+	
+	private int readIntFromByteArray(byte[] buff, int offset) {
+		int v = 0;
+		for (int i = 0; i < 4; i++) {
+			int t = 0xff & buff[offset + i];
+			v |= (t << i);
+		}
+		return v;
 	}
 	
 	private void saveCamSelection(int pos) {
@@ -604,12 +655,22 @@ public class MainActivity extends Activity {
 		return out.toByteArray();
 	}
 	
+	private void changePreviewSize(int index) {
+		CameraCommand cmd = new CameraCommand();
+		cmd.setCommand(Constants.SIZE);
+		cmd.setFormat(index);
+		this.camCommunicator.sendCommand(cmd);
+	}
+	
 	private void displayCameraPreview(Bitmap bmp, int w, int h) {
 		if (bmp != null) {
 			if (this.dirtyRect == null) {
+				this.dirtyRect = new Rect();
+			}
+			boolean sizeChanged = w != this.dirtyRect.width() || h != this.dirtyRect.height();
+			if (sizeChanged) {
 				int ww = this.cameraSv.getWidth();
 				int hh = this.cameraSv.getHeight();
-				this.dirtyRect = new Rect();
 				this.dirtyRect.left = (ww - w) >> 1;
 				if (this.dirtyRect.left < 0) {
 					this.dirtyRect.left = 0;
@@ -624,6 +685,7 @@ public class MainActivity extends Activity {
 			}
 			Canvas canvas = this.cameraSh.lockCanvas();
 			if (canvas != null) {
+				canvas.drawColor(this.svBgColor);
 				canvas.drawBitmap(bmp, this.dirtyRect.left, this.dirtyRect.top, null);
 			}
 			this.cameraSh.unlockCanvasAndPost(canvas);

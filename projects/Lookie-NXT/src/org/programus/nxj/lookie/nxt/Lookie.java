@@ -7,6 +7,7 @@ import lejos.nxt.Button;
 import lejos.nxt.ButtonListener;
 import lejos.nxt.LCD;
 import lejos.nxt.Motor;
+import lejos.nxt.NXT;
 import lejos.nxt.NXTRegulatedMotor;
 import lejos.nxt.SensorPort;
 import lejos.nxt.Sound;
@@ -58,15 +59,24 @@ public class Lookie {
 				criticalQ.offer(cmd);
 				break;
 			}
+			case NotifyTypes.TOO_NEAR: {
+				CommandMessage cmd = new CommandMessage();
+				cmd.setCommand(Constants.NEAR);
+				cmd.setData(distanceSensor.getDistance());
+				SimpleQueue<CommandMessage> q = DataBuffer.getInstance().getSendQueue();
+				q.offer(cmd);
+				break;
+			}
 			}
 			return true;
 		}
 	};
 	
-	private static void initCalibrate() {
+	private static Thread initCalibrate() {
 		Thread t = new Thread(new InitCalibrateService(head, stopSensor, notifier), "init calibrate");
 		t.setDaemon(true);
 		t.start();
+		return t;
 	}
 
 	/**
@@ -145,6 +155,18 @@ public class Lookie {
 			
 			conn.close();
 			LCD.clear();
+			
+			// I hope this robot can wait connecting again once disconnected. 
+			// But it not work well now.
+			// So shutdown now to save battery.
+			// Don't mind the while loop, it just for the future, if there is a future. :-P
+			Sound.beepSequence();
+			Thread t = initCalibrate();
+			try {
+				t.join();
+			} catch (InterruptedException e) {
+			}
+			NXT.shutDown();
 		}
 	}
 

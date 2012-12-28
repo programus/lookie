@@ -35,7 +35,8 @@ public class CameraCommandReceiver implements Runnable {
 				}
 			} catch (IOException e) {
 				this.processException(e);
-				Thread.yield();
+				cmd = new CameraCommand();
+				cmd.setCommand(Constants.END);
 			} catch (ClassNotFoundException e) {
 				this.processException(e);
 				Thread.yield();
@@ -59,5 +60,12 @@ public class CameraCommandReceiver implements Runnable {
 	
 	public void end() {
 		this.running = false;
+		if (this.in != null) {
+			try {
+				this.in.close();
+			} catch (IOException e) {
+				this.processException(e);
+			}
+		}
 	}
 }

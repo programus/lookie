@@ -35,9 +35,14 @@ public class CameraMotorService implements Runnable {
 			}
 			float angle = cmd.getData();
 			int rotateAngle = (int) (angle * ANGLE_RATE);
+			if (rotateAngle < MIN_R_ANGLE) {
+				rotateAngle = MIN_R_ANGLE;
+			} else if (rotateAngle > MAX_R_ANGLE) {
+				rotateAngle = MAX_R_ANGLE;
+			}
 			int currAngle = this.motor.getTachoCount();
 			int da = Math.abs(rotateAngle - currAngle);
-			if (da > 2 && rotateAngle > MIN_R_ANGLE && rotateAngle < MAX_R_ANGLE) {
+			if (da > 2) {
 				synchronized(this.motor) {
 					this.motor.setSpeed(this.motor.getMaxSpeed());
 					this.motor.rotateTo(rotateAngle, true);

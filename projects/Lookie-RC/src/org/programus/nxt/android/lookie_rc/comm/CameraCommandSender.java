@@ -29,7 +29,7 @@ public class CameraCommandSender implements Runnable {
 	public void run() {
 		while (this.running) {
 			CameraCommand cmd = null;
-			while (q.isEmpty()) {
+			while (q.isEmpty() && this.running) {
 				Thread.yield();
 			}
 			try {
@@ -59,6 +59,12 @@ public class CameraCommandSender implements Runnable {
 				out.flush();
 			} catch (IOException e) {
 				this.notifyException(e);
+			} finally {
+				try {
+					out.close();
+				} catch (IOException e) {
+					this.notifyException(e);
+				}
 			}
 		}
 	}

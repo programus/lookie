@@ -31,7 +31,7 @@ public class CommandSender implements Runnable {
 		CommandMessage cmd = new CommandMessage();
 		SimpleQueue<CommandMessage> q = DataBuffer.getInstance().getSendQueue();
 		while (this.running) {
-			while (!q.isEmpty()) {
+			while (!q.isEmpty() && this.running) {
 				CommandMessage c = q.poll();
 				this.sendCommand(c);
 			}
@@ -50,6 +50,13 @@ public class CommandSender implements Runnable {
 		cmd.setCommand(Constants.END);
 		cmd.setData(0);
 		this.sendCommand(cmd);
+		
+		try {
+			out.close();
+		} catch (IOException e) {
+			Sound.buzz();
+			this.notifier.notifyMessage(NotifyTypes.IOEXCEPTION, e);
+		}
 	}
 	
 	private void sendCommand(CommandMessage cmd) {

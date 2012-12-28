@@ -64,6 +64,12 @@ public class CommandSender implements Runnable {
 				out.flush();
 			} catch (IOException e) {
 				this.notifyException(e);
+			} finally {
+				try {
+					out.close();
+				} catch (IOException e) {
+					this.notifyException(e);
+				}
 			}
 		}
 	}

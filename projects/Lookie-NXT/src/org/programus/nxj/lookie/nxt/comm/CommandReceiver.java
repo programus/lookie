@@ -56,5 +56,13 @@ public class CommandReceiver implements Runnable {
 	
 	public void end() {
 		this.running = false;
+		if (this.in != null) {
+			try {
+				this.in.close();
+			} catch (IOException e) {
+				Sound.buzz();
+				this.notifier.notifyMessage(NotifyTypes.IOEXCEPTION, e);
+			}
+		}
 	}
 }

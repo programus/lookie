@@ -31,16 +31,19 @@ public interface Constants {
 	
 	int INVALID_POINTER_ID = -1;
 	
-	int COMPRESS_RATE = 10;
+	int COMPRESS_RATE = 30;
 	int SIZE_MIN_WIDTH = 100;
-	int BUFF_SIZE = 8192;
+	int SIZE_MAX_WIDTH = 800;
+	// max byte per millisecond
+	int MAX_BPMS = 25;
 	
 	int LEFT = 0;
 	int RIGHT = 1;
 	int MID = 2;
 	int CALIBRATE = 4;
 	int CAMERA = 8;
-	int FOCUS = 16;
+	int SIZE = 16;
+	int NEAR = 32;
 	int END = 0x00ff;
 	
 	int SEND_Q_SIZE = 1;

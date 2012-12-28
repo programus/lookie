@@ -70,5 +70,12 @@ public class CameraCommandReceiver implements Runnable {
 	
 	public void end() {
 		this.running = false;
+		if (this.in != null) {
+			try {
+				this.in.close();
+			} catch (IOException e) {
+				this.notifyException(e);
+			}
+		}
 	}
 }

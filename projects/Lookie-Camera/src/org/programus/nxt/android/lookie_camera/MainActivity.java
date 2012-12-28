@@ -2,6 +2,9 @@ package org.programus.nxt.android.lookie_camera;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
 import java.util.zip.GZIPOutputStream;
 
 import org.programus.lookie.lib.comm.CameraCommand;
@@ -20,6 +23,7 @@ import android.content.SharedPreferences;
 import android.graphics.Rect;
 import android.graphics.YuvImage;
 import android.hardware.Camera;
+import android.hardware.Camera.Size;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
@@ -51,6 +55,14 @@ public class MainActivity extends Activity {
 	private Camera camera;
 	private BluetoothAdapter btAdapter;
 	private Logger logger = Logger.getInstance();
+	
+	private List<Camera.Size> sizeList;
+	private static Comparator<Camera.Size> sizeComparator = new Comparator<Camera.Size>() {
+		@Override
+		public int compare(Size lhs, Size rhs) {
+			return lhs.width - rhs.width;
+		}
+	};
 	
 	private SensorManager sensorMgr;
 	private Sensor sensor;
@@ -98,6 +110,9 @@ public class MainActivity extends Activity {
 					p.cameraStarted = true;
 					p.startCameraPreview();
 					break;
+				case Constants.SIZE:
+					p.selectPreviewSize(cmd.getFormat());
+					break;
 				case Constants.END:
 					p.endShow();
 					break;
@@ -124,7 +139,9 @@ public class MainActivity extends Activity {
 					beginShow();
 				}
 			} else {
-				endShow();
+				if (serviceStarted) {
+					endShow();
+				}
 			}
 		}
 	};
@@ -177,8 +194,12 @@ public class MainActivity extends Activity {
 	};
 	
 	private Camera.PreviewCallback camPreviewCallback = new Camera.PreviewCallback() {
+		private long prevSentTime;
+		private int prevDataLength;
 		@Override
 		public void onPreviewFrame(byte[] data, Camera camera) {
+			long time = System.currentTimeMillis();
+			Log.d(TAG, "preview frame:" + time);
 			CameraCommand cmd = new CameraCommand();
 			Camera.Parameters params = camera.getParameters();
 			Camera.Size size = params.getPreviewSize();
@@ -187,10 +208,25 @@ public class MainActivity extends Activity {
 			cmd.setWidth(size.width);
 			cmd.setHeight(size.height);
 			cmd.setImageData(compressImage(data, camera));
-			cmd.setSystemTime(System.currentTimeMillis());
-			synchronized(sendQ) {
-				Log.d(TAG, String.format("time: %d, len: %d", cmd.getSystemTime(), cmd.getImageData().length));
-				sendQ.offer(cmd);
+			cmd.setSystemTime(time);
+			
+			// the time past from last sent
+			long dt = time - prevSentTime;
+			// the max possible transfer data size during this period
+			long maxDataLimit = Constants.MAX_BPMS * dt;
+			logger.log(String.format("dt: %d, max: %d, size: %d", dt, maxDataLimit, this.prevDataLength));
+			Log.d(TAG, String.format("dt: %d, max: %d, size: %d", dt, maxDataLimit, this.prevDataLength));
+			if (this.prevDataLength < maxDataLimit || this.prevDataLength == 0) {
+				// last cargo is smaller than the limit
+				synchronized(sendQ) {
+					Log.d(TAG, String.format("time: %d, len: %d", cmd.getSystemTime(), cmd.getImageData().length));
+					sendQ.offer(cmd);
+				}
+				this.prevDataLength = cmd.getImageData().length;
+				this.prevSentTime = time;
+			} else {
+				Log.d(TAG, "skip a frame");
+				logger.log("skip a frame");
 			}
 		}
 	};
@@ -245,6 +281,7 @@ public class MainActivity extends Activity {
 				camera.setPreviewDisplay(sHolder);
 				camera.setPreviewCallback(camPreviewCallback);
 				camera.startPreview();
+				logger.log("Start cam preview");
 			} catch (IOException e) {
 				logger.log("Cam Preview failed.");
 			}
@@ -255,15 +292,60 @@ public class MainActivity extends Activity {
 		params.setJpegQuality(Constants.COMPRESS_RATE);
 		params.setFocusMode(Camera.Parameters.FOCUS_MODE_AUTO);
 		
+		this.sizeList = params.getSupportedPreviewSizes();
+//		for (Iterator<Camera.Size> it = sizeList.iterator(); it.hasNext();) {
+//			Camera.Size size = it.next();
+//			if (size.width < Constants.SIZE_MIN_WIDTH || size.width > Constants.SIZE_MAX_WIDTH) {
+//				it.remove();
+//			}
+//		}
+		Collections.sort(sizeList, sizeComparator);
 		Camera.Size minSize = null;
-		for (Camera.Size size : params.getSupportedPreviewSizes()) {
-			if (minSize == null || (size.width < minSize.width && size.width > Constants.SIZE_MIN_WIDTH)) {
-				minSize = size;
-			}
+		if (!this.sizeList.isEmpty()) {
+			minSize = this.sizeList.get(0);
 		}
 		if (minSize != null) {
 			params.setPreviewSize(Math.max(minSize.width, minSize.height), Math.min(minSize.width, minSize.height));
 		}
+		
+		this.sendAllSizes();
+	}
+	
+	private void sendAllSizes() {
+		CameraCommand cmd = new CameraCommand();
+		cmd.setCommand(Constants.SIZE);
+		cmd.setFormat(this.sizeList.size());
+		byte[] sizes = new byte[this.sizeList.size() << 3];
+		int i = 0;
+		for (Camera.Size size : this.sizeList) {
+			int w = Math.max(size.width, size.height);
+			int h = Math.min(size.width, size.height);
+			this.writeIntIntoByteArray(w, sizes, i << 3);
+			this.writeIntIntoByteArray(h, sizes, (i << 3) + 4);
+			i++;
+		}
+		cmd.setImageData(sizes);
+		sendQ.offer(cmd);
+	}
+	
+	private void writeIntIntoByteArray(int v, byte[] buff, int offset) {
+		for (int i = 0; i < 4; i++) {
+			buff[offset + i] = (byte)((v >> i) & 0xff);
+		}
+	}
+	
+	private void selectPreviewSize(int index) {
+		if (index < 0) {
+			index = 0;
+		} else if (index >= this.sizeList.size()){
+			index = this.sizeList.size() - 1;
+		}
+		Camera.Size size = this.sizeList.get(index);
+		this.camera.stopPreview();
+		Camera.Parameters params = this.camera.getParameters();
+		params.setPreviewSize(Math.max(size.width, size.height), Math.min(size.width, size.height));
+		this.camera.setParameters(params);
+		this.camera.startPreview();
 	}
 	
 	private void stopCameraPreview() {
@@ -354,6 +436,7 @@ public class MainActivity extends Activity {
 		if (this.receiver != null) {
 			this.receiver.end();
 		}
+		this.toggleServiceButton.setChecked(false);
 		logger.log("Service stopped.");
 	}
 

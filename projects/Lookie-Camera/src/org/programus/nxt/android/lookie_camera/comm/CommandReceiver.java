@@ -24,15 +24,15 @@ public class CommandReceiver implements Runnable {
 	public void run() {
 		while (this.running) {
 			CameraCommand cmd = null;
-			while (this.readQ.isEmpty()) {
+			while (this.readQ.isEmpty() && this.running) {
 				Thread.yield();
 			}
 			synchronized(this.readQ) {
 				cmd = this.readQ.poll();
-				Log.d(TAG, String.format("Read => %s", cmd.toString()));
 			}
 			
 			if (cmd != null) {
+				Log.d(TAG, String.format("Read => %s", cmd.toString()));
 				this.notifyCameraCommand(cmd);
 			}
 			Thread.yield();

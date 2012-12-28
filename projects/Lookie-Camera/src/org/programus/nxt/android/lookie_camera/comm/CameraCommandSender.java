@@ -26,6 +26,9 @@ public class CameraCommandSender implements Runnable {
 	@Override
 	public void run() {
 		while (this.running) {
+			while (sendQ.isEmpty() && this.running) {
+				Thread.yield();
+			}
 			CameraCommand cmd = sendQ.poll();
 			if (cmd != null) {
 				try {
@@ -53,6 +56,12 @@ public class CameraCommandSender implements Runnable {
 				out.flush();
 			} catch (IOException e) {
 				this.processException(e);
+			} finally {
+				try {
+					out.close();
+				} catch (IOException e) {
+					this.processException(e);
+				}
 			}
 		}
 	}
