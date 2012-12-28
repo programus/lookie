@@ -1,9 +1,9 @@
 package org.programus.nxt.android.lookie_rc.comm;
 
-import java.io.DataInputStream;
 import java.io.IOException;
+import java.io.ObjectInputStream;
 
-import org.programus.lookie.lib.comm.CommandMessage;
+import org.programus.lookie.lib.comm.CameraCommand;
 import org.programus.lookie.lib.utils.Constants;
 
 import android.os.Bundle;
@@ -11,14 +11,14 @@ import android.os.Handler;
 import android.os.Message;
 import android.util.Log;
 
-public class CommandReceiver implements Runnable {
-	private final static String TAG = "Reader";
+public class CameraCommandReceiver implements Runnable {
+	private final static String TAG = "Cam Reader";
 	private boolean running = true;
 	
-	private DataInputStream in;
+	private ObjectInputStream in;
 	private Handler handler;
 	
-	public CommandReceiver(DataInputStream in, Handler handler) {
+	public CameraCommandReceiver(ObjectInputStream in, Handler handler) {
 		this.in = in;
 		this.handler = handler;
 	}
@@ -26,31 +26,31 @@ public class CommandReceiver implements Runnable {
 	@Override
 	public void run() {
 		while (this.running) {
-			CommandMessage cmd = null;
+			CameraCommand cmd = null;
 			try {
 				synchronized(in) {
-					cmd = CommandMessage.read(in);
+					cmd = (CameraCommand) in.readObject();
 					Log.d(TAG, String.format("Read => %s", cmd.toString()));
 				}
 			} catch (IOException e) {
 				this.notifyException(e);
 				Thread.yield();
+			} catch (ClassNotFoundException e) {
+				this.notifyException(e);
+				Thread.yield();
 			}
 			
 			if (cmd != null) {
-				NXTData data = new NXTData();
-				data.setDir(cmd.getCommand());
-				data.setSpeed(cmd.getData());
-				this.notifyNXTData(data);
+				notifyCameraCommand(cmd);
 			}
 			Thread.yield();
 		}
 	}
-	
-	private void notifyException(IOException e) {
+
+	private void notifyException(Exception e) {
 		Bundle b = new Bundle();
 		b.putSerializable(Constants.KEY_EXCEPTION, e);
-		b.putString(Constants.KEY_MESSAGE, "Error when read command.");
+		b.putString(Constants.KEY_MESSAGE, "Error when read camera command.");
 		
 		Message msg = new Message();
 		msg.setData(b);
@@ -58,13 +58,13 @@ public class CommandReceiver implements Runnable {
 		handler.sendMessage(msg);
 	}
 	
-	private void notifyNXTData(NXTData data) {
+	private void notifyCameraCommand(CameraCommand data) {
 		Bundle b = new Bundle();
-		b.putSerializable(Constants.KEY_NXT_DATA, data);
+		b.putSerializable(Constants.KEY_CAM_CMD, data);
 		
 		Message msg = new Message();
 		msg.setData(b);
-		msg.what = Constants.MSG_WHAT_DATA_READ;
+		msg.what = Constants.MSG_WHAT_CAM_READ;
 		handler.sendMessage(msg);
 	}
 	

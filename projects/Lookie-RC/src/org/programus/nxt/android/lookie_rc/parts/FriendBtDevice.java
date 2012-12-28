@@ -7,12 +7,20 @@ public class FriendBtDevice {
 	private String friendString;
 	
 	public FriendBtDevice (BluetoothDevice device) {
-		this(device, "|");
+		this(device, "/");
 	}
 	
 	public FriendBtDevice (BluetoothDevice device, String delimiter) {
+		this(device, "/", "<null>");
+	}
+	
+	public FriendBtDevice (BluetoothDevice device, String delimiter, String nullPrompt) {
 		this.device = device;
-		this.friendString = device.getName() + delimiter + device.getAddress();
+		if (device != null) {
+			this.friendString = device.getName() + delimiter + device.getAddress();
+		} else {
+			this.friendString = nullPrompt;
+		}
 	}
 	
 	public BluetoothDevice getDevice() {

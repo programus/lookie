@@ -1,13 +1,22 @@
 package org.programus.nxt.android.lookie_camera.services;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.StreamCorruptedException;
+
 import org.programus.nxt.android.lookie_camera.MainActivity;
 import org.programus.nxt.android.lookie_camera.comm.BluetoothAccept;
+import org.programus.nxt.android.lookie_camera.comm.CameraCommandReceiver;
+import org.programus.nxt.android.lookie_camera.comm.CameraCommandSender;
+import org.programus.nxt.android.lookie_camera.comm.DataBuffer;
 import org.programus.nxt.android.lookie_camera.utils.Logger;
 
 import android.app.Notification;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothSocket;
 import android.content.Intent;
 import android.os.IBinder;
 import android.support.v4.app.NotificationCompat;
@@ -22,6 +31,9 @@ public class MainService extends Service {
 	private Notification notification;
 	
 	private Logger logger = Logger.getInstance();
+	
+	private CameraCommandReceiver receiver;
+	private CameraCommandSender sender;
 	
 	public final static String START_FLAG_KEY = "Start.Flag";
 	public final static int START_FLAG_START = 0;
@@ -41,6 +53,22 @@ public class MainService extends Service {
 				t.start();
 			}
 		}
+	}
+	
+	private void startThreads(BluetoothSocket socket) throws StreamCorruptedException, IOException {
+		if (this.receiver == null) {
+			this.receiver = new CameraCommandReceiver(new ObjectInputStream(socket.getInputStream()));
+		}
+		Thread tr = new Thread(this.receiver, "Data receiver");
+		tr.setDaemon(true);
+		tr.start();
+		
+		if (this.sender == null) {
+			this.sender = new CameraCommandSender(new ObjectOutputStream(socket.getOutputStream()));
+		}
+		Thread ts = new Thread(this.sender, "Data sender");
+		ts.setDaemon(true);
+		ts.start();
 	}
 	
 	private void runForground() {
@@ -66,6 +94,15 @@ public class MainService extends Service {
 			break;
 		case START_FLAG_BT_CONNECTED:
 			logger.log("Bluetooth connected.");
+			try {
+				this.startThreads(this.btAccept.getSocket());
+			} catch (StreamCorruptedException e) {
+				this.logger.log("Start sender and receiver failed.");
+				e.printStackTrace();
+			} catch (IOException e) {
+				this.logger.log("Start sender and receiver failed.");
+				e.printStackTrace();
+			}
 			break;
 		}
 	}
@@ -83,6 +120,27 @@ public class MainService extends Service {
 	@Override
 	public void onDestroy() {
 		this.started = false;
+		if (this.btAccept.getSocket() != null) {
+			try {
+				this.btAccept.getSocket().close();
+				logger.log("Connection closed.");
+			} catch (IOException e) {
+				logger.log("Close socket error: " + e.getMessage());
+				e.printStackTrace();
+			}
+		}
+		this.btAccept.cancel();
+		logger.log("Stopped listen.");
+		
+		if (this.receiver != null) {
+			this.receiver.end();
+		}
+		if (this.sender != null) {
+			this.sender.end();
+		}
+		Thread.yield();
+		DataBuffer.getInstance().getReadQueue().clear();
+		DataBuffer.getInstance().getSendQueue().clear();
 		super.onDestroy();
 	}
 

@@ -1,9 +1,9 @@
 package org.programus.nxt.android.lookie_rc.comm;
 
-import java.io.DataOutputStream;
 import java.io.IOException;
+import java.io.ObjectOutputStream;
 
-import org.programus.lookie.lib.comm.CommandMessage;
+import org.programus.lookie.lib.comm.CameraCommand;
 import org.programus.lookie.lib.utils.Constants;
 import org.programus.lookie.lib.utils.SimpleQueue;
 
@@ -12,55 +12,50 @@ import android.os.Handler;
 import android.os.Message;
 import android.util.Log;
 
-public class CommandSender implements Runnable {
-	private final static String TAG = "Sender";
+public class CameraCommandSender implements Runnable {
+	private final static String TAG = "Cam Reader";
 	private boolean running = true;
 	
-	private DataOutputStream out;
+	private ObjectOutputStream out;
 	private Handler handler;
-	private DataBuffer dbuff = DataBuffer.getInstance();
-
-	public CommandSender(DataOutputStream out, Handler handler) {
+	private SimpleQueue<CameraCommand> q = DataBuffer.getInstance().getCamSendQueue();
+	
+	public CameraCommandSender(ObjectOutputStream out, Handler handler) {
 		this.out = out;
 		this.handler = handler;
 	}
-	
+
 	@Override
 	public void run() {
 		while (this.running) {
-			int count = 0;
-			SimpleQueue<CommandMessage>[] qs = dbuff.getSendQueues();
-			for (SimpleQueue<CommandMessage> q : qs) {
-				CommandMessage cmd = q.poll();
-				if (cmd != null) {
-					try {
-						synchronized(out) {
-							Log.d(TAG, String.format("Send => %s", cmd.toString()));
-							cmd.send(out);
-							out.flush();
-						}
-						count++;
-					} catch (IOException e) {
-						this.notifyException(e);
-						break;
-					}
-				}
-			}
-			if (count == 0) {
+			CameraCommand cmd = null;
+			while (q.isEmpty()) {
 				Thread.yield();
 			}
+			try {
+				synchronized(q) {
+					cmd = q.poll();
+				}
+				synchronized(out) {
+					out.writeObject(cmd);
+					Log.d(TAG, String.format("Send => %s", cmd.toString()));
+				}
+			} catch (IOException e) {
+				this.notifyException(e);
+				Thread.yield();
+			}
+			Thread.yield();
 		}
 		this.sendEndSignal();
 	}
-	
+
 	private void sendEndSignal() {
-		CommandMessage cmd = new CommandMessage();
+		CameraCommand cmd = new CameraCommand();
 		cmd.setCommand(Constants.END);
-		cmd.setData(0);
 		synchronized (out) {
 			try {
 				Log.d(TAG, String.format("Send => %s", cmd.toString()));
-				cmd.send(out);
+				out.writeObject(cmd);
 				out.flush();
 			} catch (IOException e) {
 				this.notifyException(e);
@@ -68,10 +63,10 @@ public class CommandSender implements Runnable {
 		}
 	}
 	
-	private void notifyException(IOException e) {
+	private void notifyException(Exception e) {
 		Bundle b = new Bundle();
 		b.putSerializable(Constants.KEY_EXCEPTION, e);
-		b.putString(Constants.KEY_MESSAGE, "Error when send command.");
+		b.putString(Constants.KEY_MESSAGE, "Error when send camera command.");
 		
 		Message msg = new Message();
 		msg.setData(b);

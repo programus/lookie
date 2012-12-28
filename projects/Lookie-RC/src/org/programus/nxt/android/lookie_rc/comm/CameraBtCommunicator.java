@@ -1,14 +1,17 @@
 package org.programus.nxt.android.lookie_rc.comm;
 
 import java.io.IOException;
-import java.util.Set;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.util.List;
 import java.util.UUID;
 
+import org.programus.lookie.lib.comm.CameraCommand;
 import org.programus.lookie.lib.utils.Constants;
+import org.programus.lookie.lib.utils.SimpleQueue;
 import org.programus.nxt.android.lookie_rc.parts.FriendBtDevice;
 
 import android.bluetooth.BluetoothAdapter;
-import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
 import android.os.Bundle;
 import android.os.Handler;
@@ -21,60 +24,93 @@ public class CameraBtCommunicator {
 	private BluetoothAdapter btAdapter;
 	private BluetoothSocket socket;
 	
+	private ObjectOutputStream out;
+	private ObjectInputStream in;
+	
+	private CameraCommandReceiver receiver;
+	private CameraCommandSender sender;
+	private SimpleQueue<CameraCommand> sendQ = DataBuffer.getInstance().getCamSendQueue();
+	
 	public CameraBtCommunicator(BluetoothAdapter btAdapter, Handler handler) {
 		this.btAdapter = btAdapter;
 		this.handler = handler;
 	}
 	
-	public void connect() {
+	public void connect(final FriendBtDevice fbdevice, final List<FriendBtDevice> deviceList) {
 		Thread t = new Thread(new Runnable() {
 			@Override
 			public void run() {
-				Set<BluetoothDevice> pairedDevices = btAdapter.getBondedDevices();
-				btAdapter.cancelDiscovery();
-				for (BluetoothDevice device : pairedDevices) {
+				if (fbdevice.getDevice() != null) {
 					if (socket == null) {
-						connectDevice(device);
+						connectDevice(fbdevice);
 					}
 				}
 				
 				if (socket == null) {
-					notifyConnected(false);
+					btAdapter.cancelDiscovery();
+					for (FriendBtDevice device : deviceList) {
+						if (socket == null && device.getDevice() != null) {
+							connectDevice(device);
+						}
+					}
+				}
+				
+				if (socket == null) {
+					notifyConnected(null);
 				}
 			}
 		});
-		t.setDaemon(true);
 		t.start();
 	}
 	
-	private void connectDevice(final BluetoothDevice device) {
+	private void connectDevice(final FriendBtDevice device) {
 		BluetoothSocket tmp = null;
-		FriendBtDevice d = new FriendBtDevice(device);
 		if (socket == null) {
-			Log.d(TAG, String.format("Start connecting try: %s", d));
+			Log.d(TAG, String.format("Start connecting try: %s", device));
 			try {
 				synchronized(device) {
-					tmp = device.createRfcommSocketToServiceRecord(UUID.fromString(Constants.CAMERA_UUID));
+					tmp = device.getDevice().createRfcommSocketToServiceRecord(UUID.fromString(Constants.CAMERA_UUID));
 				}
 			} catch (IOException e) {
 				Log.w(TAG, "create socket failed.", e);
 			}
 		}
-		Log.d(TAG, String.format("Tried: %s, Result: %s", d, String.valueOf(tmp)));
+		Log.d(TAG, String.format("Tried: %s, Result: %s", device, String.valueOf(tmp)));
 		try {
 			tmp.connect();
 			if (tmp != null && socket == null) {
 				socket = tmp;
-				notifyConnected(true);
+				afterConnected();
+				notifyConnected(device);
 			}
 		} catch (IOException e) {
-			Log.w(TAG, "Connect failed: " + d);
+			Log.w(TAG, "Connect failed: " + device);
 		}
 	}
 	
-	private void notifyConnected(boolean connected) {
+	private void afterConnected() throws IOException {
+		this.out = new ObjectOutputStream(this.socket.getOutputStream());
+		this.in = new ObjectInputStream(this.socket.getInputStream());
+		
+		this.receiver = new CameraCommandReceiver(this.in, this.handler);
+		Thread t = new Thread(this.receiver, "Cam Cmd Reader");
+		t.start();
+		
+		this.sender = new CameraCommandSender(this.out, this.handler);
+		Thread ts = new Thread(this.sender, "Cam Cmd Sender");
+		ts.start();
+	}
+	
+	public void sendCommand(CameraCommand cmd) {
+		synchronized(this.sendQ) {
+			this.sendQ.offer(cmd);
+		}
+	}
+	
+	private void notifyConnected(FriendBtDevice device) {
 		Bundle b = new Bundle();
-		b.putInt(Constants.KEY_CAMERA_CONNECT_STATUS, connected ? Constants.CONN_STATUS_CONNECTED : Constants.CONN_STATUS_DISCONNECTED);
+		b.putInt(Constants.KEY_CAMERA_CONNECT_STATUS, device != null ? Constants.CONN_STATUS_CONNECTED : Constants.CONN_STATUS_DISCONNECTED);
+		b.putString(Constants.KEY_CAMERA_DEVICE, device != null ? device.toString() : "null");
 		
 		Message msg = new Message();
 		msg.setData(b);
@@ -83,6 +119,9 @@ public class CameraBtCommunicator {
 	}
 	
 	public void end() throws IOException {
+		this.sender.end();
+		this.receiver.end();
+		Thread.yield();
 		this.socket.close();
 	}
 }

@@ -11,6 +11,7 @@ import lejos.nxt.NXTRegulatedMotor;
 import lejos.nxt.SensorPort;
 import lejos.nxt.Sound;
 import lejos.nxt.TouchSensor;
+import lejos.nxt.UltrasonicSensor;
 import lejos.nxt.comm.BTConnection;
 import lejos.nxt.comm.Bluetooth;
 
@@ -20,6 +21,7 @@ import org.programus.lookie.lib.utils.SimpleQueue;
 import org.programus.nxj.lookie.nxt.comm.CommandReceiver;
 import org.programus.nxj.lookie.nxt.comm.CommandSender;
 import org.programus.nxj.lookie.nxt.comm.DataBuffer;
+import org.programus.nxj.lookie.nxt.services.CameraMotorService;
 import org.programus.nxj.lookie.nxt.services.InitCalibrateService;
 import org.programus.nxj.lookie.nxt.services.MoveMotorService;
 import org.programus.nxj.lookie.nxt.utils.Notifiable;
@@ -30,6 +32,9 @@ public class Lookie {
 	public final static NXTRegulatedMotor[] wheels = {Motor.C, Motor.B};
 	public final static NXTRegulatedMotor head = Motor.A;
 	public final static TouchSensor stopSensor = new TouchSensor(SensorPort.S2);
+	public final static UltrasonicSensor distanceSensor = new UltrasonicSensor(SensorPort.S3);
+	
+	public final static int MIN_DISTANCE = 10;
 	
 	private static boolean running = true;
 	private static SimpleQueue<CommandMessage> criticalQ = DataBuffer.getInstance().getReadQueues()[DataBuffer.CONN_CMD_INDEX];
@@ -98,7 +103,7 @@ public class Lookie {
 			sndT.setDaemon(true);
 			sndT.start();
 			
-			Runnable[] wheelServices = new Runnable[wheels.length];
+			MoveMotorService[] wheelServices = new MoveMotorService[wheels.length];
 			for (int i = 0; i < wheelServices.length; i++) {
 				wheelServices[i] = new MoveMotorService(wheels[i], i);
 				Thread t = new Thread(wheelServices[i], "Wheel Motor - " + i);
@@ -106,8 +111,16 @@ public class Lookie {
 				t.start();
 			}
 			
+			CameraMotorService cameraService = new CameraMotorService(head, Constants.MID);
+			Thread tc = new Thread(cameraService, "Cam head");
+			tc.setDaemon(true);
+			tc.start();
+			
 			while (running) {
 				while (criticalQ.isEmpty() && running) {
+					if (distanceSensor.getDistance() < MIN_DISTANCE) {
+						Sound.beep();
+					}
 					Thread.yield();
 				}
 				
@@ -123,6 +136,10 @@ public class Lookie {
 			if (!running) {
 				sender.end();
 				receiver.end();
+				for (MoveMotorService s : wheelServices) {
+					s.end();
+				}
+				cameraService.end();
 				Thread.yield();
 			}
 			

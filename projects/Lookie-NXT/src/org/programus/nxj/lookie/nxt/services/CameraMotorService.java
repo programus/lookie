@@ -6,13 +6,17 @@ import org.programus.lookie.lib.comm.CommandMessage;
 import org.programus.lookie.lib.utils.SimpleQueue;
 import org.programus.nxj.lookie.nxt.comm.DataBuffer;
 
-public class MoveMotorService implements Runnable {
+public class CameraMotorService implements Runnable {
 	private NXTRegulatedMotor motor;
 	private SimpleQueue<CommandMessage> q;
 	
+	private final static int ANGLE_RATE = 3 * 5;
+	private final static int MIN_R_ANGLE = 0;
+	private final static int MAX_R_ANGLE = 360 * 5 + 180;
+	
 	private boolean running = true;
 
-	public MoveMotorService(NXTRegulatedMotor motor, int lr) {
+	public CameraMotorService(NXTRegulatedMotor motor, int lr) {
 		this.motor = motor;
 		
 		DataBuffer dbuff = DataBuffer.getInstance();
@@ -29,18 +33,17 @@ public class MoveMotorService implements Runnable {
 			synchronized(q) {
 				cmd = q.poll();
 			}
-			float speed = cmd.getData();
-			boolean forward = speed < 0;
-			speed = Math.abs(speed);
-			synchronized(this.motor) {
-				if (speed > 0.01) {
-					this.motor.setSpeed(speed);
-					if (forward) {
-						this.motor.forward();
-					} else {
-						this.motor.backward();
-					}
-				} else {
+			float angle = cmd.getData();
+			int rotateAngle = (int) (angle * ANGLE_RATE);
+			int currAngle = this.motor.getTachoCount();
+			int da = Math.abs(rotateAngle - currAngle);
+			if (da > 2 && rotateAngle > MIN_R_ANGLE && rotateAngle < MAX_R_ANGLE) {
+				synchronized(this.motor) {
+					this.motor.setSpeed(this.motor.getMaxSpeed());
+					this.motor.rotateTo(rotateAngle, true);
+				}
+			} else {
+				synchronized(this.motor) {
 					this.motor.stop();
 				}
 			}

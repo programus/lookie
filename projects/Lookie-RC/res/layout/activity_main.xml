@@ -5,50 +5,87 @@
     android:orientation="vertical"
     tools:context=".MainActivity" >
 
-    <RelativeLayout
+    <FrameLayout
         android:id="@+id/controlView"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:visibility="visible" >
+        android:layout_height="match_parent" >
 
-        <org.programus.nxt.android.lookie_rc.widgets.SpeedBar
-            android:id="@+id/leftSpeedBar"
+        <SurfaceView
+            android:id="@+id/cameraSurface"
             android:layout_width="wrap_content"
-            android:layout_height="match_parent"
-            android:layout_marginBottom="@dimen/speed_margin_vertical"
-            android:layout_marginLeft="@dimen/speed_margin_horizontal"
-            android:layout_marginRight="@dimen/speed_margin_horizontal"
-            android:layout_marginTop="@dimen/speed_margin_vertical" />
+            android:layout_height="wrap_content" />
 
-        <org.programus.nxt.android.lookie_rc.widgets.SpeedBar
-            android:id="@+id/rightSpeedBar"
-            android:layout_width="wrap_content"
+        <RelativeLayout
+            android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:layout_alignParentRight="true"
-            android:layout_centerVertical="true"
-            android:layout_marginBottom="@dimen/speed_margin_vertical"
-            android:layout_marginLeft="@dimen/speed_margin_horizontal"
-            android:layout_marginRight="@dimen/speed_margin_horizontal"
-            android:layout_marginTop="@dimen/speed_margin_vertical" />
-    </RelativeLayout>
+            android:visibility="visible" >
+
+            <org.programus.nxt.android.lookie_rc.widgets.SpeedBar
+                android:id="@+id/leftSpeedBar"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:layout_marginBottom="@dimen/speed_margin_vertical"
+                android:layout_marginLeft="@dimen/speed_margin_horizontal"
+                android:layout_marginRight="@dimen/speed_margin_horizontal"
+                android:layout_marginTop="@dimen/speed_margin_vertical" />
+
+            <org.programus.nxt.android.lookie_rc.widgets.SpeedBar
+                android:id="@+id/rightSpeedBar"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:layout_alignParentRight="true"
+                android:layout_centerVertical="true"
+                android:layout_marginBottom="@dimen/speed_margin_vertical"
+                android:layout_marginLeft="@dimen/speed_margin_horizontal"
+                android:layout_marginRight="@dimen/speed_margin_horizontal"
+                android:layout_marginTop="@dimen/speed_margin_vertical" />
+
+            <Button
+                android:id="@+id/exitControl"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentBottom="true"
+                android:layout_centerHorizontal="true"
+                android:text="@string/exit_control" />
+
+        </RelativeLayout>
+
+    </FrameLayout>
 
     <RelativeLayout
         android:id="@+id/setupView"
         android:layout_width="match_parent"
         android:layout_height="match_parent" >
 
-        <Button
-            android:id="@+id/connectButton"
-            style="?android:attr/buttonStyleSmall"
-            android:layout_width="wrap_content"
+        <RelativeLayout
+            android:id="@+id/centerLayout"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_centerInParent="true"
-            android:text="@string/connect_device_label" />
+            android:layout_centerHorizontal="true"
+            android:layout_centerVertical="true" >
+
+            <Button
+                android:id="@+id/connectButton"
+                style="?android:attr/buttonStyleSmall"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_centerHorizontal="true"
+                android:layout_centerVertical="true"
+                android:text="@string/connect_device_label" />
+
+            <Spinner
+                android:id="@+id/camSelection"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_toRightOf="@id/connectButton" />
+
+        </RelativeLayout>
 
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_above="@id/connectButton"
+            android:layout_above="@id/centerLayout"
+            android:layout_centerInParent="true"
             android:layout_margin="@dimen/prompt_margin"
             android:orientation="vertical" >
 
@@ -61,7 +98,8 @@
         <ScrollView
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:layout_below="@id/connectButton" >
+            android:layout_below="@id/centerLayout"
+            android:layout_centerInParent="true" >
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -73,10 +111,8 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:textColor="@color/log_text_color" />
-
             </LinearLayout>
         </ScrollView>
-
     </RelativeLayout>
 
 </RelativeLayout>

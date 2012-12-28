@@ -42,6 +42,7 @@ public class CommandReceiver implements Runnable {
 				switch (id) {
 				case Constants.LEFT:
 				case Constants.RIGHT:
+				case Constants.MID:
 					qs[id].offer(cmd);
 					break;
 				case Constants.END:

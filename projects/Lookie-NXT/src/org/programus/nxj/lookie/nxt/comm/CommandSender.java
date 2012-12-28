@@ -53,13 +53,15 @@ public class CommandSender implements Runnable {
 	}
 	
 	private void sendCommand(CommandMessage cmd) {
-		synchronized(out) {
-			try {
-				cmd.send(out);
-				out.flush();
-			} catch (IOException e) {
-				Sound.buzz();
-				this.notifier.notifyMessage(NotifyTypes.IOEXCEPTION, e);
+		if (out != null) {
+			synchronized(out) {
+				try {
+					cmd.send(out);
+					out.flush();
+				} catch (IOException e) {
+					Sound.buzz();
+					this.notifier.notifyMessage(NotifyTypes.IOEXCEPTION, e);
+				}
 			}
 		}
 	}
