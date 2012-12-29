@@ -24,10 +24,6 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity
-            android:name=".activities.BtConnActivity"
-            android:label="@string/title_activity_bt_conn" >
-        </activity>
     </application>
 
 </manifest>
