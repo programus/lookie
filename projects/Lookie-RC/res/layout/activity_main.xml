@@ -20,12 +20,23 @@
             android:layout_height="match_parent"
             android:visibility="visible" >
 
-            <Spinner
-                android:id="@+id/previewSizes"
-                android:layout_width="wrap_content"
+            <SeekBar
+                android:id="@+id/previewSizeSeek"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_alignParentTop="true"
-                android:layout_centerHorizontal="true" />
+                android:layout_centerHorizontal="true"
+                android:layout_marginLeft="@dimen/size_margin"
+                android:layout_marginRight="@dimen/size_margin" />
+
+            <TextView
+                android:id="@+id/sizeText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/previewSizeSeek"
+                android:layout_centerHorizontal="true"
+                android:textAppearance="?android:attr/textAppearanceSmall"
+                android:textSize="@dimen/size_prompt_text_size" />
 
             <org.programus.nxt.android.lookie_rc.widgets.SpeedBar
                 android:id="@+id/leftSpeedBar"
@@ -63,6 +74,23 @@
                 android:layout_toLeftOf="@id/rightSpeedBar"
                 android:textOff="@string/light"
                 android:textOn="@string/light" />
+
+            <SeekBar
+                android:id="@+id/previewQualitySeek"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_above="@id/exitControl"
+                android:layout_centerHorizontal="true"
+                android:layout_marginLeft="@dimen/size_margin"
+                android:layout_marginRight="@dimen/size_margin" />
+
+            <TextView
+                android:id="@+id/qualityText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_above="@id/previewQualitySeek"
+                android:layout_centerHorizontal="true"
+                android:textSize="@dimen/size_prompt_text_size" />
 
         </RelativeLayout>
 

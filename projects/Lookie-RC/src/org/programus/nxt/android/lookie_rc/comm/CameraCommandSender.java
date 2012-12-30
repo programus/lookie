@@ -13,7 +13,7 @@ import android.os.Message;
 import android.util.Log;
 
 public class CameraCommandSender implements Runnable {
-	private final static String TAG = "Cam Reader";
+	private final static String TAG = "Cam Sender";
 	private boolean running = true;
 	
 	private ObjectOutputStream out;

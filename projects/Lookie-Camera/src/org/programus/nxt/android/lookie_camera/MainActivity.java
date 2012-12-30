@@ -20,8 +20,7 @@ import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
+import android.graphics.Point;
 import android.graphics.Rect;
 import android.graphics.YuvImage;
 import android.hardware.Camera;
@@ -65,6 +64,8 @@ public class MainActivity extends Activity {
 			return lhs.width - rhs.width;
 		}
 	};
+	private Point sendSize = new Point();
+	private int sendQuality = Constants.COMPRESS_RATE;
 	
 	private SensorManager sensorMgr;
 	private Sensor sensor;
@@ -113,7 +114,10 @@ public class MainActivity extends Activity {
 					p.startCameraPreview();
 					break;
 				case Constants.SIZE:
-//					p.selectPreviewSize(cmd.getFormat());
+					p.setSendSize(cmd.getWidth(), cmd.getHeight());
+					break;
+				case Constants.QUALITY:
+					p.setSendQuality(cmd.getFormat());
 					break;
 				case Constants.LIGHT:
 					if (cmd.getFormat() > 0) {
@@ -218,9 +222,8 @@ public class MainActivity extends Activity {
 			if (this.prevDataLength < maxDataLimit || this.prevDataLength == 0) {
 				CameraCommand cmd = new CameraCommand();
 				Camera.Parameters params = camera.getParameters();
-				Camera.Size size = params.getPreviewSize();
-				int width = 256;
-				int height = width * size.height / size.width;
+				int width = sendSize.x;
+				int height = sendSize.y;
 				cmd.setCommand(Constants.CAMERA);
 				cmd.setFormat(params.getPreviewFormat());
 				cmd.setWidth(width);
@@ -245,10 +248,7 @@ public class MainActivity extends Activity {
 		Camera.Parameters params = camera.getParameters();
 		Camera.Size size = params.getPreviewSize();
 		byte[] scaled = this.scaleNV21Image(data, size.width, size.height, width, height);
-		byte[] jpg = this.compressYuvImage2Jpeg(scaled, params.getPreviewFormat(), Constants.COMPRESS_RATE, width, height);
-//		byte[] jpg = this.compressYuvImage2Jpeg(data, params.getPreviewFormat(), Constants.COMPRESS_RATE << 1, size.width, size.height);
-//		byte[] scaledJpg = this.scaleJpeg(jpg, width, height, Constants.COMPRESS_RATE);
-//		return this.compressData(scaledJpg);
+		byte[] jpg = this.compressYuvImage2Jpeg(scaled, params.getPreviewFormat(), this.sendQuality, width, height);
 		return this.compressData(jpg);
 	}
 	
@@ -272,7 +272,6 @@ public class MainActivity extends Activity {
 		int xRate = srcWidth / dstWidth;
 		int xFrac = srcW % dstW;
 		int ye = 0;
-		int xe = 0;
 		
 		int srcOffset = srcWidth * srcHeight;
 		int dstOffset = ((dstW * dstH) << 2);
@@ -286,6 +285,7 @@ public class MainActivity extends Activity {
 			int srcBaseIndex4UV = srcWidth * srcY + srcOffset;
 			
 			int srcX = 0;
+			int xe = 0;
 			for (int x = 0; x < dstW; x++) {
 				// copy Y
 				int dstIndex4Y1 = dstBaseIndex4Y + (x << 1);
@@ -317,14 +317,6 @@ public class MainActivity extends Activity {
 		}
 		
 		return dst;
-	}
-	
-	private byte[] scaleJpeg(byte[] jpg, int dstWidth, int dstHeight, int quality) {
-		Bitmap bmp = BitmapFactory.decodeByteArray(jpg, 0, jpg.length);
-		bmp = Bitmap.createScaledBitmap(bmp, dstWidth, dstHeight, false);
-		ByteArrayOutputStream out = new ByteArrayOutputStream();
-		bmp.compress(Bitmap.CompressFormat.JPEG, quality, out);
-		return out.toByteArray();
 	}
 	
 	private byte[] compressData(byte[] data) {
@@ -383,52 +375,38 @@ public class MainActivity extends Activity {
 //			}
 //		}
 		Collections.sort(sizeList, sizeComparator);
-		Camera.Size minSize = null;
+		Camera.Size maxSize = null;
 		if (!this.sizeList.isEmpty()) {
-			minSize = this.sizeList.get(this.sizeList.size() - 1);
+			maxSize = this.sizeList.get(this.sizeList.size() - 1);
 		}
-		if (minSize != null) {
-			params.setPreviewSize(Math.max(minSize.width, minSize.height), Math.min(minSize.width, minSize.height));
+		if (maxSize != null) {
+			params.setPreviewSize(Math.max(maxSize.width, maxSize.height), Math.min(maxSize.width, maxSize.height));
 		}
-		
-		this.sendAllSizes();
+		this.setupDefaultSendSize(maxSize);
+		this.sendMaxSize(maxSize);
 	}
 	
-	private void sendAllSizes() {
+	private void setupDefaultSendSize(Camera.Size maxSize) {
+		int w = Constants.SIZE_DEFAULT_WIDTH;
+		int h = w * maxSize.height / maxSize.width;
+		h = (h >>> 1) << 1;
+		this.sendSize.set(w, h);
+	}
+	
+	private void sendMaxSize(Camera.Size maxSize) {
 		CameraCommand cmd = new CameraCommand();
 		cmd.setCommand(Constants.SIZE);
-		cmd.setFormat(this.sizeList.size());
-		byte[] sizes = new byte[this.sizeList.size() << 3];
-		int i = 0;
-		for (Camera.Size size : this.sizeList) {
-			int w = Math.max(size.width, size.height);
-			int h = Math.min(size.width, size.height);
-			this.writeIntIntoByteArray(w, sizes, i << 3);
-			this.writeIntIntoByteArray(h, sizes, (i << 3) + 4);
-			i++;
-		}
-		cmd.setImageData(sizes);
-		sendQ.offer(cmd);
+		cmd.setWidth(maxSize.width);
+		cmd.setHeight(maxSize.height);
+		this.sendQ.offer(cmd);
 	}
 	
-	private void writeIntIntoByteArray(int v, byte[] buff, int offset) {
-		for (int i = 0; i < 4; i++) {
-			buff[offset + i] = (byte)((v >> i) & 0xff);
-		}
+	private void setSendSize(int width, int height) {
+		this.sendSize.set(width, height);
 	}
 	
-	private void selectPreviewSize(int index) {
-		if (index < 0) {
-			index = 0;
-		} else if (index >= this.sizeList.size()){
-			index = this.sizeList.size() - 1;
-		}
-		Camera.Size size = this.sizeList.get(index);
-		this.camera.stopPreview();
-		Camera.Parameters params = this.camera.getParameters();
-		params.setPreviewSize(Math.max(size.width, size.height), Math.min(size.width, size.height));
-		this.camera.setParameters(params);
-		this.camera.startPreview();
+	private void setSendQuality(int quality) {
+		this.sendQuality = quality;
 	}
 	
 	private void turnFlashLightOn() {

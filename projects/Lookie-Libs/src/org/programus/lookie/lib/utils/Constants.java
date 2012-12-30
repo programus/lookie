@@ -33,6 +33,7 @@ public interface Constants {
 	
 	int COMPRESS_RATE = 30;
 	int SIZE_MIN_WIDTH = 100;
+	int SIZE_DEFAULT_WIDTH = 160;
 	int SIZE_MAX_WIDTH = 800;
 	// max byte per millisecond
 	int MAX_BPMS = 25;
@@ -43,6 +44,7 @@ public interface Constants {
 	int CALIBRATE = 4;
 	int CAMERA = 8;
 	int SIZE = 16;
+	int QUALITY = 17;
 	int LIGHT = 32;
 	int END = 0x00ff;
 	

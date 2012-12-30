@@ -30,6 +30,7 @@ import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
+import android.graphics.Point;
 import android.graphics.PointF;
 import android.graphics.Rect;
 import android.hardware.Sensor;
@@ -54,6 +55,7 @@ import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.CompoundButton;
 import android.widget.CompoundButton.OnCheckedChangeListener;
+import android.widget.SeekBar;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.ToggleButton;
@@ -69,8 +71,12 @@ public class MainActivity extends Activity {
 	private Button exitControl;
 	private TextView logText;
 	private Spinner deviceSelection;
-	private Spinner previewSizes;
+	private SeekBar previewSizeSeek;
+	private TextView sizeText;
+	private SeekBar previewQualitySeek;
+	private TextView qualityText;
 	private ToggleButton toggleLight;
+	private Point origSize;
 	
 	private SpeedBar[] speeds = new SpeedBar[2];
 	private float[] speedTargets = new float[2];
@@ -196,7 +202,11 @@ public class MainActivity extends Activity {
 					p.displayCameraPreview(bmp, cmd.getWidth(), cmd.getHeight());
 					break;
 				case Constants.SIZE:
-					p.fillSizesIntoSpinner(cmd);
+					p.origSize = new Point(cmd.getWidth(), cmd.getHeight());
+					p.previewSizeSeek.setMax((Math.min(Constants.SIZE_MAX_WIDTH, p.origSize.x) - Constants.SIZE_MIN_WIDTH) >> 1);
+					p.previewSizeSeek.setProgress((Constants.SIZE_DEFAULT_WIDTH - Constants.SIZE_MIN_WIDTH) >> 1);
+					p.previewSizeSeek.setVisibility(View.VISIBLE);
+					p.sizeText.setVisibility(View.VISIBLE);
 					break;
 				case Constants.END:
 					p.disconnectCamera();
@@ -262,14 +272,42 @@ public class MainActivity extends Activity {
 		}
 	};
 	
-	private OnItemSelectedListener sizeSelectedListener = new OnItemSelectedListener() {
+	private SeekBar.OnSeekBarChangeListener sizeChangedListener = new SeekBar.OnSeekBarChangeListener() {
+		private Point size = new Point();
 		@Override
-		public void onItemSelected(AdapterView<?> parent, View view, int pos, long id) {
-			changePreviewSize(pos);
+		public void onStopTrackingTouch(SeekBar seekBar) {
+//			sizeText.setVisibility(View.GONE);
+			changePreviewSize(size.x, size.y);
+		}
+		@Override
+		public void onStartTrackingTouch(SeekBar seekBar) {
+//			sizeText.setVisibility(View.VISIBLE);
+		}
+		@Override
+		public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+			if (origSize != null && origSize.x > 0 && origSize.y > 0) {
+				size.x = (progress << 1) + Constants.SIZE_MIN_WIDTH;
+				size.y = origSize.y * size.x / origSize.x;
+				sizeText.setText(String.format("Preview Size: %d x %d", size.x, size.y));
+			}
+		}
+	};
+	
+	private SeekBar.OnSeekBarChangeListener qualityChangedListener = new SeekBar.OnSeekBarChangeListener() {
+		private int quality;
+		@Override
+		public void onStopTrackingTouch(SeekBar seekBar) {
+			changePreviewQuality(quality);
 		}
 		
 		@Override
-		public void onNothingSelected(AdapterView<?> parent) {
+		public void onStartTrackingTouch(SeekBar seekBar) {
+		}
+		
+		@Override
+		public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+			this.quality = progress;
+			qualityText.setText(String.format("Preview Quality: %d", progress));
 		}
 	};
 	
@@ -501,6 +539,8 @@ public class MainActivity extends Activity {
 			this.dirtyRect = null;
 			this.setupView.setVisibility(View.VISIBLE);
 			this.controlView.setVisibility(View.GONE);
+			this.previewSizeSeek.setVisibility(View.GONE);
+			this.sizeText.setVisibility(View.GONE);
 			this.getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 			this.stopDetectAngle();
 		}
@@ -539,11 +579,17 @@ public class MainActivity extends Activity {
 		this.exitControl = (Button) this.findViewById(R.id.exitControl);
 		this.logText = (TextView) this.findViewById(R.id.logText);
 		this.deviceSelection = (Spinner) this.findViewById(R.id.camSelection);
-		this.previewSizes = (Spinner) this.findViewById(R.id.previewSizes);
+		this.previewSizeSeek = (SeekBar) this.findViewById(R.id.previewSizeSeek);
+		this.sizeText = (TextView) this.findViewById(R.id.sizeText);
+		this.previewQualitySeek = (SeekBar) this.findViewById(R.id.previewQualitySeek);
+		this.qualityText = (TextView) this.findViewById(R.id.qualityText);
 		this.toggleLight = (ToggleButton) this.findViewById(R.id.toggleLight);
 		
 		this.deviceSelection.setOnItemSelectedListener(camSelectedListener);
-		this.previewSizes.setOnItemSelectedListener(sizeSelectedListener);
+		this.previewSizeSeek.setOnSeekBarChangeListener(sizeChangedListener);
+		this.previewQualitySeek.setOnSeekBarChangeListener(qualityChangedListener);
+		this.previewQualitySeek.setMax(100);
+		this.previewQualitySeek.setProgress(Constants.COMPRESS_RATE);
 		this.toggleLight.setOnCheckedChangeListener(toggleLightListener);
 		
 		if (this.turnOnBt()) {
@@ -586,32 +632,6 @@ public class MainActivity extends Activity {
 		this.deviceSelection.setAdapter(adapter);
 		this.deviceSelection.setTag(deviceList);
 		this.loadCamSelection();
-	}
-	
-	private void fillSizesIntoSpinner(CameraCommand cmd) {
-		int count = cmd.getFormat();
-		byte[] data = cmd.getImageData();
-		if (data != null) {
-			String[] sizes = new String[count];
-			for (int i = 0; i < count; i++) {
-				int w = this.readIntFromByteArray(data, i << 3);
-				int h = this.readIntFromByteArray(data, (i << 3) + 4);
-				sizes[i] = String.format("%d x %d", w, h);
-			}
-			
-			ArrayAdapter<String> adapter = new ArrayAdapter<String>(this, android.R.layout.simple_spinner_item, sizes);
-			adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-			this.previewSizes.setAdapter(adapter);
-		}
-	}
-	
-	private int readIntFromByteArray(byte[] buff, int offset) {
-		int v = 0;
-		for (int i = 0; i < 4; i++) {
-			int t = 0xff & buff[offset + i];
-			v |= (t << i);
-		}
-		return v;
 	}
 	
 	private void saveCamSelection(int pos) {
@@ -671,10 +691,18 @@ public class MainActivity extends Activity {
 		return out.toByteArray();
 	}
 	
-	private void changePreviewSize(int index) {
+	private void changePreviewSize(int width, int height) {
 		CameraCommand cmd = new CameraCommand();
 		cmd.setCommand(Constants.SIZE);
-		cmd.setFormat(index);
+		cmd.setWidth(width);
+		cmd.setHeight(height);
+		this.camCommunicator.sendCommand(cmd);
+	}
+	
+	private void changePreviewQuality(int quality) {
+		CameraCommand cmd = new CameraCommand();
+		cmd.setCommand(Constants.QUALITY);
+		cmd.setFormat(quality);
 		this.camCommunicator.sendCommand(cmd);
 	}
 	
