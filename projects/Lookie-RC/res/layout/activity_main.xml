@@ -92,6 +92,15 @@
                 android:layout_centerHorizontal="true"
                 android:textSize="@dimen/size_prompt_text_size" />
 
+            <ImageButton
+                android:id="@+id/recordButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignBottom="@id/exitControl"
+                android:layout_toRightOf="@id/leftSpeedBar"
+                android:contentDescription="@string/record_desc"
+                android:src="@android:drawable/presence_video_online" />
+
         </RelativeLayout>
 
     </FrameLayout>

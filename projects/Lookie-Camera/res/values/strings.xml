@@ -4,5 +4,7 @@
     <string name="app_name">Lookie-Camera</string>
     <string name="hello_world">Hello world!</string>
     <string name="menu_settings">Settings</string>
+    <string name="test_record_desc">A button for record test.</string>
+    <string name="test_cam_desc">Cam button for test</string>
 
 </resources>

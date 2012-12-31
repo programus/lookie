@@ -1,11 +1,11 @@
 package org.programus.nxt.android.lookie_camera;
 
-import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.IOException;
-import java.util.Collections;
-import java.util.Comparator;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
 import java.util.List;
-import java.util.zip.GZIPOutputStream;
+import java.util.Locale;
 
 import org.programus.lookie.lib.comm.CameraCommand;
 import org.programus.lookie.lib.utils.Constants;
@@ -15,30 +15,36 @@ import org.programus.nxt.android.lookie_camera.comm.CommandReceiver;
 import org.programus.nxt.android.lookie_camera.comm.DataBuffer;
 import org.programus.nxt.android.lookie_camera.services.MainService;
 import org.programus.nxt.android.lookie_camera.utils.Logger;
+import org.programus.nxt.android.lookie_camera.video.ImageTransporter;
+import org.programus.nxt.android.lookie_camera.video.JpegVideoRecorder;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.graphics.ImageFormat;
 import android.graphics.Point;
-import android.graphics.Rect;
-import android.graphics.YuvImage;
 import android.hardware.Camera;
-import android.hardware.Camera.Size;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
+import android.media.CamcorderProfile;
+import android.media.MediaRecorder;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.Message;
 import android.util.Log;
 import android.view.Menu;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
+import android.view.View;
 import android.view.WindowManager;
 import android.widget.CompoundButton;
 import android.widget.CompoundButton.OnCheckedChangeListener;
+import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.ToggleButton;
 
@@ -51,19 +57,27 @@ public class MainActivity extends Activity {
 	
 	private ToggleButton toggleServiceButton;
 	private TextView logText;
+	private ImageButton recordButton;
+	private ImageButton camButton;
+	
 	private SurfaceView sv;
 	private SurfaceHolder sHolder;
 	private Camera camera;
+	private ImageTransporter imgTransporter;
+	
+	private MediaRecorder recorder;
+	private JpegVideoRecorder vrecorder;
+	private boolean recording;
+	@SuppressLint("SimpleDateFormat")
+	private SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd_HHmmss");
+	private CamcorderProfile profile;
+	private Point origSize = new Point();
+	
+	private int previewFormat = ImageFormat.NV21;
+	
 	private BluetoothAdapter btAdapter;
 	private Logger logger = Logger.getInstance();
 	
-	private List<Camera.Size> sizeList;
-	private static Comparator<Camera.Size> sizeComparator = new Comparator<Camera.Size>() {
-		@Override
-		public int compare(Size lhs, Size rhs) {
-			return lhs.width - rhs.width;
-		}
-	};
 	private Point sendSize = new Point();
 	private int sendQuality = Constants.COMPRESS_RATE;
 	
@@ -126,6 +140,16 @@ public class MainActivity extends Activity {
 						p.turnFlashLightOff();
 					}
 					break;
+				case Constants.RECORD:
+					if (cmd.getFormat() > 0) {
+//						p.startRecording();
+						p.startVideoRecording();
+						p.feedbackRecordResult();
+					} else {
+//						p.stopRecording();
+						p.stopVideoRecording();
+					}
+					break;
 				case Constants.END:
 					p.endShow();
 					break;
@@ -155,6 +179,37 @@ public class MainActivity extends Activity {
 				if (serviceStarted) {
 					endShow();
 				}
+			}
+		}
+	};
+	
+	private View.OnClickListener recordListener = new View.OnClickListener() {
+		@Override
+		public void onClick(View v) {
+			if (vrecorder.isRecording()) {
+//				stopRecording();
+				stopVideoRecording();
+				recordButton.setImageResource(android.R.drawable.presence_video_online);
+			} else if (cameraStarted){
+//				startRecording();
+				startVideoRecording();
+				if (vrecorder.isRecording()) {
+					recordButton.setImageResource(android.R.drawable.presence_video_busy);
+				}
+			}
+		}
+	};
+	
+	private View.OnClickListener camListener = new View.OnClickListener() {
+		@Override
+		public void onClick(View v) {
+			if (cameraStarted) {
+				stopCameraPreview();
+				camButton.setImageResource(android.R.drawable.presence_online);
+			} else {
+				cameraStarted = true;
+				startCameraPreview();
+				camButton.setImageResource(android.R.drawable.presence_audio_busy);
 			}
 		}
 	};
@@ -207,134 +262,16 @@ public class MainActivity extends Activity {
 	};
 	
 	private Camera.PreviewCallback camPreviewCallback = new Camera.PreviewCallback() {
-		private long prevSentTime;
-		private int prevDataLength;
 		@Override
 		public void onPreviewFrame(byte[] data, Camera camera) {
 			long time = System.currentTimeMillis();
 			Log.d(TAG, "preview frame:" + time);
-			// the time past from last sent
-			long dt = time - prevSentTime;
-			// the max possible transfer data size during this period
-			long maxDataLimit = Constants.MAX_BPMS * dt;
-//			logger.log(String.format("dt: %d, max: %d, size: %d", dt, maxDataLimit, this.prevDataLength));
-			Log.d(TAG, String.format("dt: %d, max: %d, size: %d", dt, maxDataLimit, this.prevDataLength));
-			if (this.prevDataLength < maxDataLimit || this.prevDataLength == 0) {
-				CameraCommand cmd = new CameraCommand();
-				Camera.Parameters params = camera.getParameters();
-				int width = sendSize.x;
-				int height = sendSize.y;
-				cmd.setCommand(Constants.CAMERA);
-				cmd.setFormat(params.getPreviewFormat());
-				cmd.setWidth(width);
-				cmd.setHeight(height);
-				cmd.setImageData(getImageDataForSend(data, camera, width, height));
-				cmd.setSystemTime(time);
-				// last cargo is smaller than the limit
-				synchronized(sendQ) {
-					Log.d(TAG, String.format("time: %d, len: %d", cmd.getSystemTime(), cmd.getImageData().length));
-					sendQ.offer(cmd);
-				}
-				this.prevDataLength = cmd.getImageData().length;
-				this.prevSentTime = time;
-			} else {
-				Log.d(TAG, "skip a frame");
-				logger.log("skip a frame");
+			imgTransporter.transportFrame(data, origSize.x, origSize.y, sendSize.x, sendSize.y, time, previewFormat, sendQuality);
+			if (vrecorder.isRecording()) {
+				vrecorder.putFrame(data, time);
 			}
 		}
 	};
-	
-	private byte[] getImageDataForSend(byte[] data, Camera camera, int width, int height) {
-		Camera.Parameters params = camera.getParameters();
-		Camera.Size size = params.getPreviewSize();
-		byte[] scaled = this.scaleNV21Image(data, size.width, size.height, width, height);
-		byte[] jpg = this.compressYuvImage2Jpeg(scaled, params.getPreviewFormat(), this.sendQuality, width, height);
-		return this.compressData(jpg);
-	}
-	
-	private byte[] compressYuvImage2Jpeg(byte[] data, int format, int quality, int width, int height) {
-		YuvImage yuvImage = new YuvImage(data, format, width, height, null);
-		Rect rect = new Rect(0, 0, width, height);
-		ByteArrayOutputStream out = new ByteArrayOutputStream();
-		yuvImage.compressToJpeg(rect, quality, out);
-		return out.toByteArray();
-	}
-	
-	private byte[] scaleNV21Image(byte[] data, int srcWidth, int srcHeight, int dstWidth, int dstHeight) {
-		int srcH = srcHeight >> 1;
-		int srcW = srcWidth >> 1;
-		int dstH = dstHeight >> 1;
-		int dstW = dstWidth >> 1;
-		
-		byte[] dst = new byte[dstW * dstH * 6];
-		int yRate = srcHeight / dstHeight;
-		int yFrac = srcH % dstH;
-		int xRate = srcWidth / dstWidth;
-		int xFrac = srcW % dstW;
-		int ye = 0;
-		
-		int srcOffset = srcWidth * srcHeight;
-		int dstOffset = ((dstW * dstH) << 2);
-		
-		int srcY = 0;
-		
-		for (int y = 0; y < dstH; y++) {
-			int dstBaseIndex4Y = dstW * 4 * y;
-			int srcBaseIndex4Y = srcW * 4 * srcY;
-			int dstBaseIndex4UV = dstW * 2 * y + dstOffset;
-			int srcBaseIndex4UV = srcWidth * srcY + srcOffset;
-			
-			int srcX = 0;
-			int xe = 0;
-			for (int x = 0; x < dstW; x++) {
-				// copy Y
-				int dstIndex4Y1 = dstBaseIndex4Y + (x << 1);
-				int dstIndex4Y2 = dstIndex4Y1 + (dstW << 1);
-				int srcIndex4Y1 = srcBaseIndex4Y + (srcX << 1);
-				int srcIndex4Y2 = srcIndex4Y1 + (srcW << 1);
-				System.arraycopy(data, srcIndex4Y1, dst, dstIndex4Y1, 2);
-				System.arraycopy(data, srcIndex4Y2, dst, dstIndex4Y2, 2);
-				
-				// copy UV
-				int dstIndex4UV = dstBaseIndex4UV + (x << 1);
-				int srcIndex4UV = srcBaseIndex4UV + (srcX << 1);
-				System.arraycopy(data, srcIndex4UV, dst, dstIndex4UV, 2);
-				
-				srcX += xRate;
-				xe += xFrac;
-				if (xe >= dstWidth) {
-					xe -= dstWidth;
-					srcX++;
-				}
-			}
-			
-			srcY += yRate;
-			ye += yFrac;
-			if (ye >= dstHeight) {
-				ye -= dstHeight;
-				srcY++;
-			}
-		}
-		
-		return dst;
-	}
-	
-	private byte[] compressData(byte[] data) {
-		return compressDataGZIP(data);
-	}
-	
-	private byte[] compressDataGZIP(byte[] data) {
-		ByteArrayOutputStream out = new ByteArrayOutputStream();
-		try {
-			GZIPOutputStream gzipOut = new GZIPOutputStream(out);
-			gzipOut.write(data);
-			gzipOut.flush();
-			gzipOut.close();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-		return out.toByteArray();
-	}
 	
 	private void startAngleDetection() {
 		this.sensorMgr.registerListener(sensorListener, this.sensor, SensorManager.SENSOR_DELAY_NORMAL);
@@ -351,7 +288,9 @@ public class MainActivity extends Activity {
 				Camera.Parameters params = this.camera.getParameters();
 				this.setupCameraParameters(params);
 				this.camera.setParameters(params);
+				this.sendMaxSize(this.origSize.x, this.origSize.y);
 			}
+			this.imgTransporter.start();
 			try {
 				camera.setPreviewDisplay(sHolder);
 				camera.setPreviewCallback(camPreviewCallback);
@@ -364,40 +303,232 @@ public class MainActivity extends Activity {
 	}
 	
 	private void setupCameraParameters(Camera.Parameters params) {
-		params.setJpegQuality(Constants.COMPRESS_RATE);
 		params.setFocusMode(Camera.Parameters.FOCUS_MODE_AUTO);
+		params.setPreviewFormat(this.previewFormat);
 		
-		this.sizeList = params.getSupportedPreviewSizes();
-//		for (Iterator<Camera.Size> it = sizeList.iterator(); it.hasNext();) {
-//			Camera.Size size = it.next();
-//			if (size.width < Constants.SIZE_MIN_WIDTH || size.width > Constants.SIZE_MAX_WIDTH) {
-//				it.remove();
-//			}
-//		}
-		Collections.sort(sizeList, sizeComparator);
-		Camera.Size maxSize = null;
-		if (!this.sizeList.isEmpty()) {
-			maxSize = this.sizeList.get(this.sizeList.size() - 1);
+		int maxWidth = 0;
+		for (Camera.Size size : params.getSupportedPreviewSizes()) {
+			if (size.width > maxWidth && size.width < Constants.SIZE_MAX_WIDTH) {
+				maxWidth = size.width;
+				this.origSize.x = Math.max(size.width, size.height);
+				this.origSize.y = Math.min(size.width, size.height);
+			}
 		}
-		if (maxSize != null) {
-			params.setPreviewSize(Math.max(maxSize.width, maxSize.height), Math.min(maxSize.width, maxSize.height));
-		}
-		this.setupDefaultSendSize(maxSize);
-		this.sendMaxSize(maxSize);
+		params.setPreviewSize(this.origSize.x, this.origSize.y);
+		
+//		this.profile = CamcorderProfile.get(CamcorderProfile.QUALITY_HIGH);
+		this.setupDefaultSendSize(this.origSize.x, this.origSize.y);
 	}
 	
-	private void setupDefaultSendSize(Camera.Size maxSize) {
+	/**
+	 * This method is not be used since retrieving preview data is not possible while recording on android.
+	 */
+	private boolean prepareVideoRecorder() {
+		boolean success = true;
+		// Pre-step. check SD-card and file
+		File outputFile = this.getOutputVideoFile();
+		if (outputFile == null) {
+			success = false;
+		} else {
+			// Step 0.1 initialize recorder
+			this.recorder = new MediaRecorder();
+			
+			// Step 1. unlock and set camera to recorder
+			this.camera.unlock();
+			this.recorder.setCamera(camera);
+			
+			// Step 2. Set sources
+			this.recorder.setAudioSource(MediaRecorder.AudioSource.CAMCORDER);
+			this.recorder.setVideoSource(MediaRecorder.VideoSource.CAMERA);
+			
+			// Step 3. Set a CamcorderProfile
+			this.recorder.setProfile(this.profile);
+//			this.recorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
+//			this.recorder.setOutputFormat(MediaRecorder.OutputFormat.DEFAULT);
+//			this.recorder.setAudioEncoder(MediaRecorder.AudioEncoder.DEFAULT);
+//			this.recorder.setVideoEncoder(MediaRecorder.VideoEncoder.DEFAULT);
+//			this.recorder.setVideoFrameRate(5);
+//			this.recorder.setVideoEncodingBitRate(8);
+			
+			// Step 4. Set output file
+			this.recorder.setOutputFile(outputFile.getAbsolutePath());
+			
+			// Step 5. Set the preview output
+			this.recorder.setPreviewDisplay(this.sHolder.getSurface());
+			
+			// Step 6. Prepare configured MediaRecorder
+			try {
+				this.recorder.prepare();
+				success = true;
+			} catch (IllegalStateException e) {
+				logger.log("IllegalStateException when prepare recorder: " + e.getMessage());
+				this.releaseVideoRecorder();
+				success = false;
+			} catch (IOException e) {
+				logger.log("IOException when prepare recorder: " + e.getMessage());
+				this.releaseVideoRecorder();
+				success = false;
+			}
+		}
+		
+		return success;
+	}
+	
+	/**
+	 * This method is not be used since retrieving preview data is not possible while recording on android.
+	 */
+	private void releaseVideoRecorder() {
+		if (this.recorder != null) {
+			this.recorder.reset();
+			this.recorder.release();
+			this.recorder = null;
+			try {
+				this.camera.reconnect();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+			this.camera.stopPreview();
+			Camera.Parameters params = this.camera.getParameters();
+			params.setFocusMode(Camera.Parameters.FOCUS_MODE_AUTO);
+			this.camera.setParameters(params);
+			this.camera.setPreviewCallback(camPreviewCallback);
+			this.camera.startPreview();
+		}
+	}
+	
+	private void startVideoRecording() {
+		this.vrecorder.setOutputFilePath(getOutputImagePath());
+		this.vrecorder.setVideoQuality(Constants.VIDEO_QUALITY);
+		this.vrecorder.setVideoSize(this.origSize.x, this.origSize.y);
+		this.vrecorder.setFrameFormat(previewFormat);
+		this.vrecorder.setFPS(Constants.MAX_FPS);
+		this.vrecorder.startRecord();
+	}
+	
+	/**
+	 * This method is not be used since retrieving preview data is not possible while recording on android.
+	 */
+	private void startRecording() {
+		// Setup camera parameters for video recording
+		this.camera.stopPreview();
+		Camera.Parameters params = this.camera.getParameters();
+		params.setFocusMode(Camera.Parameters.FOCUS_MODE_CONTINUOUS_VIDEO);
+		this.camera.setParameters(params);
+		this.camera.startPreview();
+		
+		try {
+			if (this.prepareVideoRecorder()) {
+				Log.d(TAG, "Start record...");
+				this.recorder.start();
+				Log.d(TAG, "record started");
+				try {
+					this.camera.reconnect();
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+				this.recording = true;
+			} else {
+				this.recording = false;
+				this.releaseVideoRecorder();
+			}
+		} catch (Exception e) {
+			this.recording = false;
+			e.printStackTrace();
+			this.releaseVideoRecorder();
+		}
+	}
+	
+	private void feedbackRecordResult() {
+		CameraCommand cmd = new CameraCommand();
+		cmd.setCommand(Constants.RECORD);
+		cmd.setFormat(this.vrecorder.isRecording() ? 1 : 0);
+		Log.d(TAG, "Feedback: " + this.vrecorder.isRecording());
+		this.sendQ.offer(cmd);
+	}
+	
+	private void stopVideoRecording() {
+		if (this.vrecorder.isRecording()) {
+			this.vrecorder.stopRecord();
+		}
+	}
+	
+	/**
+	 * This method is not be used since retrieving preview data is not possible while recording on android.
+	 */
+	private void stopRecording() {
+		if (this.recording) {
+			this.recorder.stop();
+			this.releaseVideoRecorder();
+			this.recording = false;
+			
+			this.resetCameraFocusMode();
+		}
+	}
+	
+	private void resetCameraFocusMode() {
+		this.camera.stopPreview();
+		Camera.Parameters params = this.camera.getParameters();
+		params.setFocusMode(Camera.Parameters.FOCUS_MODE_AUTO);
+		this.camera.setParameters(params);
+		this.camera.startPreview();
+	}
+	
+	/**
+	 * This method is not be used since retrieving preview data is not possible while recording on android.
+	 */
+	private File getOutputVideoFile() {
+		File file = null;
+		if (Environment.MEDIA_MOUNTED.equals(Environment.getExternalStorageState())) {
+			File path = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), "Lookie_Record");
+			if (!path.exists()) {
+				if (!path.mkdirs()) {
+					logger.log("Video save directory cannot be created:" + path.getAbsolutePath());
+					return null;
+				}
+			}
+			
+			String timestamp = this.sdf.format(Calendar.getInstance().getTime());
+			String filename = String.format("LookieVID_%s.mp4", timestamp);
+			file = new File(path, filename);
+		}
+		return file;
+	}
+	
+	private File getOutputImagePath() {
+		File file = null;
+		if (Environment.MEDIA_MOUNTED.equals(Environment.getExternalStorageState())) {
+			File path = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), "Lookie_Record");
+			if (!path.exists()) {
+				if (!path.mkdirs()) {
+					logger.log("Video save directory cannot be created:" + path.getAbsolutePath());
+					return null;
+				}
+			}
+			
+			String timestamp = this.sdf.format(Calendar.getInstance().getTime());
+			String filename = String.format(Locale.ENGLISH, "Lookie_JPGs_%s", timestamp);
+			file = new File(path, filename);
+			if (!file.exists()) {
+				if (!file.mkdirs()) {
+					file = null;
+				}
+			}
+		}
+		return file;
+	}
+	
+	private void setupDefaultSendSize(int width, int height) {
 		int w = Constants.SIZE_DEFAULT_WIDTH;
-		int h = w * maxSize.height / maxSize.width;
+		int h = w * height / width;
 		h = (h >>> 1) << 1;
 		this.sendSize.set(w, h);
 	}
 	
-	private void sendMaxSize(Camera.Size maxSize) {
+	private void sendMaxSize(int width, int height) {
 		CameraCommand cmd = new CameraCommand();
 		cmd.setCommand(Constants.SIZE);
-		cmd.setWidth(maxSize.width);
-		cmd.setHeight(maxSize.height);
+		cmd.setWidth(width);
+		cmd.setHeight(height);
 		this.sendQ.offer(cmd);
 	}
 	
@@ -452,6 +583,7 @@ public class MainActivity extends Activity {
 				cam.setPreviewCallback(null);
 				cam.release();
 			}
+			this.imgTransporter.stop();
 		}
 		this.cameraStarted = false;
 	}
@@ -489,6 +621,14 @@ public class MainActivity extends Activity {
 		this.getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 		this.toggleServiceButton = (ToggleButton) this.findViewById(R.id.toggleServiceButton);
 		this.logText = (TextView) this.findViewById(R.id.logText);
+		this.recordButton = (ImageButton) this.findViewById(R.id.recordButton);
+		this.recordButton.setOnClickListener(recordListener);
+		this.camButton = (ImageButton) this.findViewById(R.id.camButton);
+		this.camButton.setOnClickListener(camListener);
+		
+		this.imgTransporter = new ImageTransporter(this.sendQ);
+		this.vrecorder = new JpegVideoRecorder();
+		
 		this.sv = (SurfaceView) this.findViewById(R.id.previewSurface);
 		this.sHolder = this.sv.getHolder();
 		this.sHolder.addCallback(shCallback);

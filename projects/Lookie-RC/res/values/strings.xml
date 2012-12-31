@@ -11,5 +11,6 @@
     <string name="connect_prompt">Please ensure \n1. you have paired the NXT and the android device you used as camera with this device,\n2. you have turned NXT on and running Lookie,\n3. the Lookie-Camera is running on the other android device.</string>
     <string name="exit_control">EXIT</string>
     <string name="light">Light</string>
+    <string name="record_desc">Record Button</string>
 
 </resources>

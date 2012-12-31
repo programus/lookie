@@ -55,6 +55,7 @@ import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.CompoundButton;
 import android.widget.CompoundButton.OnCheckedChangeListener;
+import android.widget.ImageButton;
 import android.widget.SeekBar;
 import android.widget.Spinner;
 import android.widget.TextView;
@@ -76,7 +77,13 @@ public class MainActivity extends Activity {
 	private SeekBar previewQualitySeek;
 	private TextView qualityText;
 	private ToggleButton toggleLight;
+	private ImageButton recordButton;
 	private Point origSize;
+	private int recordState;
+	
+	private final static int RECORD_STATE_STOPPED = 0;
+	private final static int RECORD_STATE_START_RECORD = 1;
+	private final static int RECORD_STATE_RECORDING = 2;
 	
 	private SpeedBar[] speeds = new SpeedBar[2];
 	private float[] speedTargets = new float[2];
@@ -208,6 +215,15 @@ public class MainActivity extends Activity {
 					p.previewSizeSeek.setVisibility(View.VISIBLE);
 					p.sizeText.setVisibility(View.VISIBLE);
 					break;
+				case Constants.RECORD:
+					if (cmd.getFormat() > 0) {
+						// successfully start recording
+						p.setRecordState(MainActivity.RECORD_STATE_RECORDING);
+					} else {
+						// failed... :-(
+						p.setRecordState(MainActivity.RECORD_STATE_STOPPED);
+					}
+					break;
 				case Constants.END:
 					p.disconnectCamera();
 					p.disconnectRobot();
@@ -318,6 +334,19 @@ public class MainActivity extends Activity {
 			cmd.setCommand(Constants.LIGHT);
 			cmd.setFormat(isChecked ? 1 : 0);
 			camCommunicator.sendCommand(cmd);
+		}
+	};
+	
+	private OnClickListener recordListener = new View.OnClickListener() {
+		@Override
+		public void onClick(View v) {
+			if (recordState == RECORD_STATE_STOPPED) {
+				startRecording();
+				setRecordState(RECORD_STATE_START_RECORD);
+			} else if (recordState == RECORD_STATE_RECORDING) {
+				stopRecording();
+				setRecordState(RECORD_STATE_STOPPED);
+			}
 		}
 	};
 	
@@ -584,6 +613,7 @@ public class MainActivity extends Activity {
 		this.previewQualitySeek = (SeekBar) this.findViewById(R.id.previewQualitySeek);
 		this.qualityText = (TextView) this.findViewById(R.id.qualityText);
 		this.toggleLight = (ToggleButton) this.findViewById(R.id.toggleLight);
+		this.recordButton = (ImageButton) this.findViewById(R.id.recordButton);
 		
 		this.deviceSelection.setOnItemSelectedListener(camSelectedListener);
 		this.previewSizeSeek.setOnSeekBarChangeListener(sizeChangedListener);
@@ -591,6 +621,7 @@ public class MainActivity extends Activity {
 		this.previewQualitySeek.setMax(100);
 		this.previewQualitySeek.setProgress(Constants.COMPRESS_RATE);
 		this.toggleLight.setOnCheckedChangeListener(toggleLightListener);
+		this.recordButton.setOnClickListener(recordListener);
 		
 		if (this.turnOnBt()) {
 			this.setupDevicesForSpinner();
@@ -666,6 +697,10 @@ public class MainActivity extends Activity {
 //		}
 //		return bmp;
 		
+		if (data == null) {
+			return null;
+		}
+		
 		byte[] jpg = uncompressData(data);
 		
 		return BitmapFactory.decodeByteArray(jpg, 0, jpg.length);
@@ -733,7 +768,49 @@ public class MainActivity extends Activity {
 				canvas.drawBitmap(bmp, this.dirtyRect.left, this.dirtyRect.top, null);
 			}
 			this.cameraSh.unlockCanvasAndPost(canvas);
+		} else {
+			Canvas canvas = this.cameraSh.lockCanvas();
+			if (canvas != null) {
+				canvas.drawColor(this.svBgColor);
+			}
+			this.cameraSh.unlockCanvasAndPost(canvas);
 		}
+	}
+	
+	private void startRecording() {
+		CameraCommand cmd = new CameraCommand();
+		cmd.setCommand(Constants.RECORD);
+		cmd.setFormat(1);
+		this.camCommunicator.sendCommand(cmd);
+	}
+	
+	private void stopRecording() {
+		CameraCommand cmd = new CameraCommand();
+		cmd.setCommand(Constants.RECORD);
+		cmd.setFormat(0);
+		this.camCommunicator.sendCommand(cmd);
+	}
+	
+	private void setRecordState(int recordState) {
+		int resource = android.R.drawable.presence_video_away;
+		boolean enabled = true;
+		switch (recordState) {
+		case RECORD_STATE_START_RECORD:
+			resource = android.R.drawable.presence_video_away;
+			enabled = false;
+			break;
+		case RECORD_STATE_RECORDING:
+			resource = android.R.drawable.presence_video_busy;
+			enabled = true;
+			break;
+		case RECORD_STATE_STOPPED:
+			resource = android.R.drawable.presence_video_online;
+			enabled = true;
+			break;
+		}
+		this.recordState = recordState;
+		this.recordButton.setImageResource(resource);
+		this.recordButton.setEnabled(enabled);
 	}
 
 	@Override

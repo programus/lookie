@@ -19,6 +19,31 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content" />
 
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:visibility="gone" >
+
+            <ImageButton
+                android:id="@+id/camButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="fill_horizontal"
+                android:layout_weight="1"
+                android:contentDescription="@string/test_cam_desc"
+                android:src="@android:drawable/presence_online" />
+
+            <ImageButton
+                android:id="@+id/recordButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="fill_horizontal"
+                android:layout_weight="1"
+                android:contentDescription="@string/test_record_desc"
+                android:src="@android:drawable/presence_video_online"
+                android:visibility="visible" />
+        </LinearLayout>
+
         <ScrollView
             android:layout_width="match_parent"
             android:layout_height="wrap_content" >
@@ -33,6 +58,7 @@
                     android:layout_height="wrap_content" />
             </LinearLayout>
         </ScrollView>
+
     </LinearLayout>
 
 </FrameLayout>

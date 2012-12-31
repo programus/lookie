@@ -32,11 +32,14 @@ public interface Constants {
 	int INVALID_POINTER_ID = -1;
 	
 	int COMPRESS_RATE = 30;
+	int VIDEO_QUALITY = 75;
 	int SIZE_MIN_WIDTH = 100;
 	int SIZE_DEFAULT_WIDTH = 160;
-	int SIZE_MAX_WIDTH = 800;
+	int SIZE_MAX_WIDTH = 1000;
 	// max byte per millisecond
 	int MAX_BPMS = 25;
+	int MAX_DISK_BPMS = Integer.MAX_VALUE;
+	int MAX_FPS = 25;
 	
 	int LEFT = 0;
 	int RIGHT = 1;
@@ -46,6 +49,8 @@ public interface Constants {
 	int SIZE = 16;
 	int QUALITY = 17;
 	int LIGHT = 32;
+	int RECORD = 64;
+	int FOCUS = 128;
 	int END = 0x00ff;
 	
 	int SEND_Q_SIZE = 1;
