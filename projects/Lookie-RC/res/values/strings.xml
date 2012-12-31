@@ -12,5 +12,7 @@
     <string name="exit_control">EXIT</string>
     <string name="light">Light</string>
     <string name="record_desc">Record Button</string>
+    <string name="get_focus">Focus</string>
+    <string name="focus_frame_desc">Focus Frame</string>
 
 </resources>

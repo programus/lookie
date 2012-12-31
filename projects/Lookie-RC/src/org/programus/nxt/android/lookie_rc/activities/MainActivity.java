@@ -22,6 +22,7 @@ import org.programus.nxt.android.lookie_rc.parts.FriendBtDevice;
 import org.programus.nxt.android.lookie_rc.widgets.SpeedBar;
 import org.programus.nxt.android.lookie_rc.widgets.SpeedBar.OnValueChangedListener;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
@@ -33,10 +34,12 @@ import android.graphics.Canvas;
 import android.graphics.Point;
 import android.graphics.PointF;
 import android.graphics.Rect;
+import android.graphics.drawable.GradientDrawable;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
@@ -48,6 +51,7 @@ import android.view.SurfaceView;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.View.OnTouchListener;
+import android.view.ViewGroup.LayoutParams;
 import android.view.WindowManager;
 import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemSelectedListener;
@@ -78,6 +82,11 @@ public class MainActivity extends Activity {
 	private TextView qualityText;
 	private ToggleButton toggleLight;
 	private ImageButton recordButton;
+	private Button focusButton;
+	private View focusFrameView;
+	
+	private GradientDrawable focusFrame;
+	
 	private Point origSize;
 	private int recordState;
 	
@@ -224,12 +233,19 @@ public class MainActivity extends Activity {
 						p.setRecordState(MainActivity.RECORD_STATE_STOPPED);
 					}
 					break;
+				case Constants.FOCUS:
+					p.setFocusState(false, cmd.getFormat() > 0);
+					break;
 				case Constants.END:
 					p.disconnectCamera();
 					p.disconnectRobot();
 					break;
 				}
+				break;
 			}
+			case Constants.MSG_WHAT_FOCUS_RESTORE:
+				p.focusFrameView.setVisibility(View.GONE);
+				break;
 			}
 		}
 	}
@@ -347,6 +363,13 @@ public class MainActivity extends Activity {
 				stopRecording();
 				setRecordState(RECORD_STATE_STOPPED);
 			}
+		}
+	};
+	
+	private OnClickListener focusListener = new View.OnClickListener() {
+		@Override
+		public void onClick(View v) {
+			autoFocus();
 		}
 	};
 	
@@ -614,6 +637,10 @@ public class MainActivity extends Activity {
 		this.qualityText = (TextView) this.findViewById(R.id.qualityText);
 		this.toggleLight = (ToggleButton) this.findViewById(R.id.toggleLight);
 		this.recordButton = (ImageButton) this.findViewById(R.id.recordButton);
+		this.focusButton = (Button) this.findViewById(R.id.focusButton);
+		this.focusFrameView = this.findViewById(R.id.focusFrameView);
+		
+		this.focusFrame = (GradientDrawable) this.focusFrameView.getBackground();
 		
 		this.deviceSelection.setOnItemSelectedListener(camSelectedListener);
 		this.previewSizeSeek.setOnSeekBarChangeListener(sizeChangedListener);
@@ -622,10 +649,13 @@ public class MainActivity extends Activity {
 		this.previewQualitySeek.setProgress(Constants.COMPRESS_RATE);
 		this.toggleLight.setOnCheckedChangeListener(toggleLightListener);
 		this.recordButton.setOnClickListener(recordListener);
+		this.focusButton.setOnClickListener(focusListener);
 		
 		if (this.turnOnBt()) {
 			this.setupDevicesForSpinner();
 		}
+		
+		this.focusFrameView.setVisibility(View.GONE);
 		
 		this.speeds[Constants.LEFT] = (SpeedBar) this.findViewById(R.id.leftSpeedBar);
 		this.speeds[Constants.RIGHT] = (SpeedBar) this.findViewById(R.id.rightSpeedBar);
@@ -761,6 +791,7 @@ public class MainActivity extends Activity {
 				this.dirtyRect.right = this.dirtyRect.left + w;
 				this.dirtyRect.bottom = this.dirtyRect.top + h;
 				Log.d(TAG, String.format("(%d, %d) - (%d, %d), Rect: %s", ww, hh, w, h, this.dirtyRect.toString()));
+				this.setFocusFrameSize(this.dirtyRect.width(), this.dirtyRect.height());
 			}
 			Canvas canvas = this.cameraSh.lockCanvas();
 			if (canvas != null) {
@@ -777,6 +808,13 @@ public class MainActivity extends Activity {
 		}
 	}
 	
+	private void setFocusFrameSize(int w, int h) {
+		LayoutParams params = this.focusFrameView.getLayoutParams();
+		params.width = w / 3;
+		params.height = h / 3;
+		this.focusFrameView.setLayoutParams(params);
+	}
+	
 	private void startRecording() {
 		CameraCommand cmd = new CameraCommand();
 		cmd.setCommand(Constants.RECORD);
@@ -789,6 +827,13 @@ public class MainActivity extends Activity {
 		cmd.setCommand(Constants.RECORD);
 		cmd.setFormat(0);
 		this.camCommunicator.sendCommand(cmd);
+	}
+	
+	private void autoFocus() {
+		CameraCommand cmd = new CameraCommand();
+		cmd.setCommand(Constants.FOCUS);
+		this.camCommunicator.sendCommand(cmd);
+		this.setFocusState(true, true);
 	}
 	
 	private void setRecordState(int recordState) {
@@ -811,6 +856,23 @@ public class MainActivity extends Activity {
 		this.recordState = recordState;
 		this.recordButton.setImageResource(resource);
 		this.recordButton.setEnabled(enabled);
+	}
+	
+	@SuppressWarnings("deprecation")
+	@SuppressLint("NewApi")
+	private void setFocusState(boolean focusing, boolean success) {
+		int color = this.getResources().getColor(focusing ? R.color.focus_focusing_color : success ? R.color.focus_success : R.color.focus_failed);
+		this.focusFrame.setStroke(2, color);
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
+			this.focusFrameView.setBackground(focusFrame);
+		} else {
+			this.focusFrameView.setBackgroundDrawable(focusFrame);
+		}
+		this.focusFrameView.setVisibility(View.VISIBLE);
+		this.focusButton.setEnabled(!focusing);
+		if (!focusing) {
+			handler.sendEmptyMessageDelayed(Constants.MSG_WHAT_FOCUS_RESTORE, 500);
+		}
 	}
 
 	@Override

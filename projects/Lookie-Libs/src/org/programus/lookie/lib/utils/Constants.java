@@ -10,6 +10,7 @@ public interface Constants {
 	int MSG_WHAT_CAM_READ = 0x09;
 	int MSG_WHAT_GET_ANGLE = 0x0a;
 	int MSG_WHAT_TAKE_PICTURE = 0x0b;
+	int MSG_WHAT_FOCUS_RESTORE = 0x0c;
 	int MSG_WHAT_LOG = 0x10;
 	
 	String CAMERA_UUID = "d03c8970-4f5c-11e2-bcfd-0800200c9a66";
@@ -53,6 +54,6 @@ public interface Constants {
 	int FOCUS = 128;
 	int END = 0x00ff;
 	
-	int SEND_Q_SIZE = 1;
-	int READ_Q_SIZE = 1;
+	int SEND_Q_SIZE = 2;
+	int READ_Q_SIZE = 2;
 }

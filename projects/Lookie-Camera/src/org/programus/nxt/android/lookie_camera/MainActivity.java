@@ -6,6 +6,7 @@ import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.List;
 import java.util.Locale;
+import java.util.Queue;
 
 import org.programus.lookie.lib.comm.CameraCommand;
 import org.programus.lookie.lib.utils.Constants;
@@ -30,8 +31,6 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
-import android.media.CamcorderProfile;
-import android.media.MediaRecorder;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
@@ -65,12 +64,12 @@ public class MainActivity extends Activity {
 	private Camera camera;
 	private ImageTransporter imgTransporter;
 	
-	private MediaRecorder recorder;
+//	private MediaRecorder recorder;
 	private JpegVideoRecorder vrecorder;
-	private boolean recording;
+//	private boolean recording;
 	@SuppressLint("SimpleDateFormat")
 	private SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd_HHmmss");
-	private CamcorderProfile profile;
+//	private CamcorderProfile profile;
 	private Point origSize = new Point();
 	
 	private int previewFormat = ImageFormat.NV21;
@@ -86,7 +85,8 @@ public class MainActivity extends Activity {
 	
 	private CommandReceiver receiver;
 	
-	private SimpleQueue<CameraCommand> sendQ = DataBuffer.getInstance().getSendQueue();
+	private Queue<CameraCommand> sendQ = DataBuffer.getInstance().getSendQueue();
+	private SimpleQueue<CameraCommand> imageQ = DataBuffer.getInstance().getImageQueue();
 	
 	private boolean serviceStarted;
 	private boolean cameraStarted;
@@ -149,6 +149,9 @@ public class MainActivity extends Activity {
 //						p.stopRecording();
 						p.stopVideoRecording();
 					}
+					break;
+				case Constants.FOCUS:
+					p.autoFocus();
 					break;
 				case Constants.END:
 					p.endShow();
@@ -273,6 +276,17 @@ public class MainActivity extends Activity {
 		}
 	};
 	
+	private Camera.AutoFocusCallback focusCallback = new Camera.AutoFocusCallback() {
+		@Override
+		public void onAutoFocus(boolean success, Camera camera) {
+			Log.d(TAG, "focused.");
+			CameraCommand cmd = new CameraCommand();
+			cmd.setCommand(Constants.FOCUS);
+			cmd.setFormat(success ? 1 : 0);
+			sendQ.offer(cmd);
+		}
+	};
+	
 	private void startAngleDetection() {
 		this.sensorMgr.registerListener(sensorListener, this.sensor, SensorManager.SENSOR_DELAY_NORMAL);
 	}
@@ -320,81 +334,81 @@ public class MainActivity extends Activity {
 		this.setupDefaultSendSize(this.origSize.x, this.origSize.y);
 	}
 	
-	/**
-	 * This method is not be used since retrieving preview data is not possible while recording on android.
-	 */
-	private boolean prepareVideoRecorder() {
-		boolean success = true;
-		// Pre-step. check SD-card and file
-		File outputFile = this.getOutputVideoFile();
-		if (outputFile == null) {
-			success = false;
-		} else {
-			// Step 0.1 initialize recorder
-			this.recorder = new MediaRecorder();
-			
-			// Step 1. unlock and set camera to recorder
-			this.camera.unlock();
-			this.recorder.setCamera(camera);
-			
-			// Step 2. Set sources
-			this.recorder.setAudioSource(MediaRecorder.AudioSource.CAMCORDER);
-			this.recorder.setVideoSource(MediaRecorder.VideoSource.CAMERA);
-			
-			// Step 3. Set a CamcorderProfile
-			this.recorder.setProfile(this.profile);
-//			this.recorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
-//			this.recorder.setOutputFormat(MediaRecorder.OutputFormat.DEFAULT);
-//			this.recorder.setAudioEncoder(MediaRecorder.AudioEncoder.DEFAULT);
-//			this.recorder.setVideoEncoder(MediaRecorder.VideoEncoder.DEFAULT);
-//			this.recorder.setVideoFrameRate(5);
-//			this.recorder.setVideoEncodingBitRate(8);
-			
-			// Step 4. Set output file
-			this.recorder.setOutputFile(outputFile.getAbsolutePath());
-			
-			// Step 5. Set the preview output
-			this.recorder.setPreviewDisplay(this.sHolder.getSurface());
-			
-			// Step 6. Prepare configured MediaRecorder
-			try {
-				this.recorder.prepare();
-				success = true;
-			} catch (IllegalStateException e) {
-				logger.log("IllegalStateException when prepare recorder: " + e.getMessage());
-				this.releaseVideoRecorder();
-				success = false;
-			} catch (IOException e) {
-				logger.log("IOException when prepare recorder: " + e.getMessage());
-				this.releaseVideoRecorder();
-				success = false;
-			}
-		}
-		
-		return success;
-	}
-	
-	/**
-	 * This method is not be used since retrieving preview data is not possible while recording on android.
-	 */
-	private void releaseVideoRecorder() {
-		if (this.recorder != null) {
-			this.recorder.reset();
-			this.recorder.release();
-			this.recorder = null;
-			try {
-				this.camera.reconnect();
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-			this.camera.stopPreview();
-			Camera.Parameters params = this.camera.getParameters();
-			params.setFocusMode(Camera.Parameters.FOCUS_MODE_AUTO);
-			this.camera.setParameters(params);
-			this.camera.setPreviewCallback(camPreviewCallback);
-			this.camera.startPreview();
-		}
-	}
+//	/**
+//	 * This method is not be used since retrieving preview data is not possible while recording on android.
+//	 */
+//	private boolean prepareVideoRecorder() {
+//		boolean success = true;
+//		// Pre-step. check SD-card and file
+//		File outputFile = this.getOutputVideoFile();
+//		if (outputFile == null) {
+//			success = false;
+//		} else {
+//			// Step 0.1 initialize recorder
+//			this.recorder = new MediaRecorder();
+//			
+//			// Step 1. unlock and set camera to recorder
+//			this.camera.unlock();
+//			this.recorder.setCamera(camera);
+//			
+//			// Step 2. Set sources
+//			this.recorder.setAudioSource(MediaRecorder.AudioSource.CAMCORDER);
+//			this.recorder.setVideoSource(MediaRecorder.VideoSource.CAMERA);
+//			
+//			// Step 3. Set a CamcorderProfile
+//			this.recorder.setProfile(this.profile);
+////			this.recorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
+////			this.recorder.setOutputFormat(MediaRecorder.OutputFormat.DEFAULT);
+////			this.recorder.setAudioEncoder(MediaRecorder.AudioEncoder.DEFAULT);
+////			this.recorder.setVideoEncoder(MediaRecorder.VideoEncoder.DEFAULT);
+////			this.recorder.setVideoFrameRate(5);
+////			this.recorder.setVideoEncodingBitRate(8);
+//			
+//			// Step 4. Set output file
+//			this.recorder.setOutputFile(outputFile.getAbsolutePath());
+//			
+//			// Step 5. Set the preview output
+//			this.recorder.setPreviewDisplay(this.sHolder.getSurface());
+//			
+//			// Step 6. Prepare configured MediaRecorder
+//			try {
+//				this.recorder.prepare();
+//				success = true;
+//			} catch (IllegalStateException e) {
+//				logger.log("IllegalStateException when prepare recorder: " + e.getMessage());
+//				this.releaseVideoRecorder();
+//				success = false;
+//			} catch (IOException e) {
+//				logger.log("IOException when prepare recorder: " + e.getMessage());
+//				this.releaseVideoRecorder();
+//				success = false;
+//			}
+//		}
+//		
+//		return success;
+//	}
+//	
+//	/**
+//	 * This method is not be used since retrieving preview data is not possible while recording on android.
+//	 */
+//	private void releaseVideoRecorder() {
+//		if (this.recorder != null) {
+//			this.recorder.reset();
+//			this.recorder.release();
+//			this.recorder = null;
+//			try {
+//				this.camera.reconnect();
+//			} catch (IOException e) {
+//				e.printStackTrace();
+//			}
+//			this.camera.stopPreview();
+//			Camera.Parameters params = this.camera.getParameters();
+//			params.setFocusMode(Camera.Parameters.FOCUS_MODE_AUTO);
+//			this.camera.setParameters(params);
+//			this.camera.setPreviewCallback(camPreviewCallback);
+//			this.camera.startPreview();
+//		}
+//	}
 	
 	private void startVideoRecording() {
 		this.vrecorder.setOutputFilePath(getOutputImagePath());
@@ -405,38 +419,38 @@ public class MainActivity extends Activity {
 		this.vrecorder.startRecord();
 	}
 	
-	/**
-	 * This method is not be used since retrieving preview data is not possible while recording on android.
-	 */
-	private void startRecording() {
-		// Setup camera parameters for video recording
-		this.camera.stopPreview();
-		Camera.Parameters params = this.camera.getParameters();
-		params.setFocusMode(Camera.Parameters.FOCUS_MODE_CONTINUOUS_VIDEO);
-		this.camera.setParameters(params);
-		this.camera.startPreview();
-		
-		try {
-			if (this.prepareVideoRecorder()) {
-				Log.d(TAG, "Start record...");
-				this.recorder.start();
-				Log.d(TAG, "record started");
-				try {
-					this.camera.reconnect();
-				} catch (Exception e) {
-					e.printStackTrace();
-				}
-				this.recording = true;
-			} else {
-				this.recording = false;
-				this.releaseVideoRecorder();
-			}
-		} catch (Exception e) {
-			this.recording = false;
-			e.printStackTrace();
-			this.releaseVideoRecorder();
-		}
-	}
+//	/**
+//	 * This method is not be used since retrieving preview data is not possible while recording on android.
+//	 */
+//	private void startRecording() {
+//		// Setup camera parameters for video recording
+//		this.camera.stopPreview();
+//		Camera.Parameters params = this.camera.getParameters();
+//		params.setFocusMode(Camera.Parameters.FOCUS_MODE_CONTINUOUS_VIDEO);
+//		this.camera.setParameters(params);
+//		this.camera.startPreview();
+//		
+//		try {
+//			if (this.prepareVideoRecorder()) {
+//				Log.d(TAG, "Start record...");
+//				this.recorder.start();
+//				Log.d(TAG, "record started");
+//				try {
+//					this.camera.reconnect();
+//				} catch (Exception e) {
+//					e.printStackTrace();
+//				}
+//				this.recording = true;
+//			} else {
+//				this.recording = false;
+//				this.releaseVideoRecorder();
+//			}
+//		} catch (Exception e) {
+//			this.recording = false;
+//			e.printStackTrace();
+//			this.releaseVideoRecorder();
+//		}
+//	}
 	
 	private void feedbackRecordResult() {
 		CameraCommand cmd = new CameraCommand();
@@ -452,47 +466,54 @@ public class MainActivity extends Activity {
 		}
 	}
 	
-	/**
-	 * This method is not be used since retrieving preview data is not possible while recording on android.
-	 */
-	private void stopRecording() {
-		if (this.recording) {
-			this.recorder.stop();
-			this.releaseVideoRecorder();
-			this.recording = false;
-			
-			this.resetCameraFocusMode();
+//	/**
+//	 * This method is not be used since retrieving preview data is not possible while recording on android.
+//	 */
+//	private void stopRecording() {
+//		if (this.recording) {
+//			this.recorder.stop();
+//			this.releaseVideoRecorder();
+//			this.recording = false;
+//			
+//			this.resetCameraFocusMode();
+//		}
+//	}
+//	
+//	private void resetCameraFocusMode() {
+//		this.camera.stopPreview();
+//		Camera.Parameters params = this.camera.getParameters();
+//		params.setFocusMode(Camera.Parameters.FOCUS_MODE_AUTO);
+//		this.camera.setParameters(params);
+//		this.camera.startPreview();
+//	}
+	
+	private void autoFocus() {
+		if (this.cameraStarted) {
+			Log.d(TAG, "auto focus");
+			this.camera.autoFocus(focusCallback);
 		}
 	}
 	
-	private void resetCameraFocusMode() {
-		this.camera.stopPreview();
-		Camera.Parameters params = this.camera.getParameters();
-		params.setFocusMode(Camera.Parameters.FOCUS_MODE_AUTO);
-		this.camera.setParameters(params);
-		this.camera.startPreview();
-	}
-	
-	/**
-	 * This method is not be used since retrieving preview data is not possible while recording on android.
-	 */
-	private File getOutputVideoFile() {
-		File file = null;
-		if (Environment.MEDIA_MOUNTED.equals(Environment.getExternalStorageState())) {
-			File path = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), "Lookie_Record");
-			if (!path.exists()) {
-				if (!path.mkdirs()) {
-					logger.log("Video save directory cannot be created:" + path.getAbsolutePath());
-					return null;
-				}
-			}
-			
-			String timestamp = this.sdf.format(Calendar.getInstance().getTime());
-			String filename = String.format("LookieVID_%s.mp4", timestamp);
-			file = new File(path, filename);
-		}
-		return file;
-	}
+//	/**
+//	 * This method is not be used since retrieving preview data is not possible while recording on android.
+//	 */
+//	private File getOutputVideoFile() {
+//		File file = null;
+//		if (Environment.MEDIA_MOUNTED.equals(Environment.getExternalStorageState())) {
+//			File path = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), "Lookie_Record");
+//			if (!path.exists()) {
+//				if (!path.mkdirs()) {
+//					logger.log("Video save directory cannot be created:" + path.getAbsolutePath());
+//					return null;
+//				}
+//			}
+//			
+//			String timestamp = this.sdf.format(Calendar.getInstance().getTime());
+//			String filename = String.format("LookieVID_%s.mp4", timestamp);
+//			file = new File(path, filename);
+//		}
+//		return file;
+//	}
 	
 	private File getOutputImagePath() {
 		File file = null;
@@ -626,7 +647,7 @@ public class MainActivity extends Activity {
 		this.camButton = (ImageButton) this.findViewById(R.id.camButton);
 		this.camButton.setOnClickListener(camListener);
 		
-		this.imgTransporter = new ImageTransporter(this.sendQ);
+		this.imgTransporter = new ImageTransporter(this.imageQ);
 		this.vrecorder = new JpegVideoRecorder();
 		
 		this.sv = (SurfaceView) this.findViewById(R.id.previewSurface);

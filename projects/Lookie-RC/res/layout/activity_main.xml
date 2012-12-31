@@ -20,6 +20,14 @@
             android:layout_height="match_parent"
             android:visibility="visible" >
 
+            <View
+                android:id="@+id/focusFrameView"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_centerHorizontal="true"
+                android:layout_centerVertical="true"
+                android:background="@drawable/focus_frame" />
+
             <SeekBar
                 android:id="@+id/previewSizeSeek"
                 android:layout_width="match_parent"
@@ -97,9 +105,20 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_alignBottom="@id/exitControl"
+                android:layout_alignTop="@id/exitControl"
                 android:layout_toRightOf="@id/leftSpeedBar"
                 android:contentDescription="@string/record_desc"
                 android:src="@android:drawable/presence_video_online" />
+
+            <Button
+                android:id="@+id/focusButton"
+                style="?android:attr/buttonStyleSmall"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignBottom="@id/exitControl"
+                android:layout_alignTop="@id/exitControl"
+                android:layout_toRightOf="@id/recordButton"
+                android:text="@string/get_focus" />
 
         </RelativeLayout>
 
@@ -108,7 +127,8 @@
     <RelativeLayout
         android:id="@+id/setupView"
         android:layout_width="match_parent"
-        android:layout_height="match_parent" >
+        android:layout_height="match_parent"
+        android:visibility="gone" >
 
         <RelativeLayout
             android:id="@+id/centerLayout"

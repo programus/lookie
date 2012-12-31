@@ -5,5 +5,8 @@
     <color name="speedbar_default_stroke_color">#7f7f7f7f</color>
     <color name="speedbar_default_indicator_color">#9020d0fa</color>
     <color name="speedbar_default_overflow_color">#7fa00000</color>
+    <color name="focus_focusing_color">#7efff033</color>
+    <color name="focus_success">#7e33ff33</color>
+    <color name="focus_failed">#7eff3333</color>
     
 </resources>

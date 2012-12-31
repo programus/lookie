@@ -2,6 +2,7 @@ package org.programus.nxt.android.lookie_camera.comm;
 
 import java.io.IOException;
 import java.io.ObjectOutputStream;
+import java.util.Queue;
 
 import org.programus.lookie.lib.comm.CameraCommand;
 import org.programus.lookie.lib.utils.Constants;
@@ -15,7 +16,8 @@ public class CameraCommandSender implements Runnable {
 	private boolean running = true;
 	
 	private ObjectOutputStream out;
-	private SimpleQueue<CameraCommand> sendQ = DataBuffer.getInstance().getSendQueue();
+	private Queue<CameraCommand> sendQ = DataBuffer.getInstance().getSendQueue();
+	private SimpleQueue<CameraCommand> imageQ = DataBuffer.getInstance().getImageQueue();
 	
 	private Logger logger = Logger.getInstance();
 
@@ -26,24 +28,52 @@ public class CameraCommandSender implements Runnable {
 	@Override
 	public void run() {
 		while (this.running) {
-			while (sendQ.isEmpty() && this.running) {
+			while (sendQ.isEmpty() && imageQ.isEmpty() && this.running) {
 				Thread.yield();
 			}
-			CameraCommand cmd = sendQ.poll();
-			if (cmd != null) {
-				try {
-					synchronized(out) {
-						Log.d(TAG, String.format("Send => %s", cmd.toString()));
-						out.writeObject(cmd);
-						out.flush();
+			while (!sendQ.isEmpty()) {
+				CameraCommand cmd = null;
+				synchronized (sendQ) {
+					cmd = sendQ.poll();
+				}
+				if (cmd != null) {
+					if (!sendCommand(cmd)) {
+						break;
 					}
-				} catch (IOException e) {
-					this.processException(e);
-					break;
+				}
+				Thread.yield();
+			}
+			if (!imageQ.isEmpty()) {
+				CameraCommand cmd = null;
+				synchronized (imageQ) {
+					cmd = imageQ.poll();
+				}
+				if (cmd != null) {
+					if (!sendCommand(cmd)) {
+						break;
+					}
 				}
 			}
 		}
 		this.sendEndSignal();
+	}
+	
+	private boolean sendCommand(CameraCommand cmd) {
+		boolean ret = false;
+		if (cmd != null) {
+			try {
+				synchronized(out) {
+					Log.d(TAG, String.format("Send => %s", cmd.toString()));
+					out.writeObject(cmd);
+					out.flush();
+					ret = true;
+				}
+			} catch (IOException e) {
+				this.processException(e);
+			}
+		}
+		
+		return ret;
 	}
 	
 	private void sendEndSignal() {

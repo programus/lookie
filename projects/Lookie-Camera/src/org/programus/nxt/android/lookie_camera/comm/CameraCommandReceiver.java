@@ -2,6 +2,7 @@ package org.programus.nxt.android.lookie_camera.comm;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
+import java.util.Queue;
 
 import org.programus.lookie.lib.comm.CameraCommand;
 import org.programus.lookie.lib.utils.Constants;
@@ -50,7 +51,7 @@ public class CameraCommandReceiver implements Runnable {
 	}
 
 	private void processException(Exception e) {
-		SimpleQueue<CameraCommand> sendQ = DataBuffer.getInstance().getSendQueue();
+		Queue<CameraCommand> sendQ = DataBuffer.getInstance().getSendQueue();
 		CameraCommand cmd = new CameraCommand();
 		cmd.setCommand(Constants.END);
 		sendQ.offer(cmd);
