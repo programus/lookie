@@ -1,0 +1,72 @@
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".VideoPlayActivity" >
+
+    <SurfaceView
+        android:id="@+id/playSurface"
+        android:layout_width="fill_parent"
+        android:layout_height="fill_parent" />
+
+    <RelativeLayout
+        android:id="@+id/touchPlayView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" >
+
+        <TextView
+            android:id="@+id/loadingText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerInParent="true"
+            android:background="@drawable/loading_background"
+            android:text="@string/loading"
+            android:visibility="gone" />
+
+        <RelativeLayout
+            android:id="@+id/ctrlView"
+            android:layout_width="fill_parent"
+            android:layout_height="fill_parent" >
+
+            <TextView
+                android:id="@+id/nameTitle"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:layout_alignParentLeft="true"
+                android:layout_alignParentTop="true"
+                android:background="@drawable/loading_background"
+                android:textAppearance="?android:attr/textAppearanceLarge" />
+
+            <SeekBar
+                android:id="@+id/frameBar"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_alignParentBottom="true"
+                android:layout_alignParentLeft="true"
+                android:layout_alignParentRight="true"
+                android:layout_marginLeft="@dimen/frame_bar_margin"
+                android:layout_marginRight="@dimen/frame_bar_margin" />
+
+            <TextView
+                android:id="@+id/frameText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_above="@id/frameBar"
+                android:layout_centerHorizontal="true"
+                android:background="@drawable/loading_background"
+                android:textColor="@color/frame_number_color" />
+
+            <ImageView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_centerInParent="true"
+                android:background="@drawable/play_indicator_background"
+                android:contentDescription="@string/play_button_desc"
+                android:focusable="false"
+                android:src="@android:drawable/ic_media_play" />
+
+        </RelativeLayout>
+
+    </RelativeLayout>
+
+</FrameLayout>

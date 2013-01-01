@@ -6,5 +6,13 @@
     <string name="menu_settings">Settings</string>
     <string name="test_record_desc">A button for record test.</string>
     <string name="test_cam_desc">Cam button for test</string>
+    <string name="menu_view_video">View Recorded Videos</string>
+    <string name="title_activity_video_select">Video Selection</string>
+    <string name="video_preview_desc">Preview</string>
+    <string name="title_activity_video_play">VideoPlayActivity</string>
+    <string name="rew_button_desc">rewind</string>
+    <string name="play_button_desc">play</string>
+    <string name="ff_button_desc">fast forward</string>
+    <string name="loading">Video loading...</string>
 
 </resources>

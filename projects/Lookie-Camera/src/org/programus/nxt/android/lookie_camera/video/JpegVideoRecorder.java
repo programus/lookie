@@ -17,7 +17,6 @@ import android.util.Log;
 
 public class JpegVideoRecorder {
 	private final static String TAG = "JPEGVRecorder";
-	private final static String INFO_FILENAME = "info.txt";
 	private static class FrameInformation {
 		private byte[] nv21;
 		private long sysTime;
@@ -117,7 +116,7 @@ public class JpegVideoRecorder {
 		
 		private void writeInformation2File(int count, long dt) {
 			double fps = count * 1000 / dt;
-			File file = new File(path, INFO_FILENAME);
+			File file = new File(path, VideoInformation.INFO_FILENAME);
 			PrintStream out = null;
 			try {
 				out = new PrintStream(file);
@@ -125,7 +124,6 @@ public class JpegVideoRecorder {
 				out.println(String.format("h:%d", height));
 				out.println(String.format("fps:%f", fps));
 				out.println(String.format("quality:%d", quality));
-				out.println(String.format("frames:%d", count));
 				out.flush();
 			} catch (FileNotFoundException e) {
 				e.printStackTrace();

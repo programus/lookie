@@ -5,7 +5,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.StreamCorruptedException;
 
-import org.programus.nxt.android.lookie_camera.MainActivity;
+import org.programus.nxt.android.lookie_camera.activites.MainActivity;
 import org.programus.nxt.android.lookie_camera.comm.BluetoothAccept;
 import org.programus.nxt.android.lookie_camera.comm.CameraCommandReceiver;
 import org.programus.nxt.android.lookie_camera.comm.CameraCommandSender;

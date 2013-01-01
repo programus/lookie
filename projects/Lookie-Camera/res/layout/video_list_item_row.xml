@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal" >
+
+    <ImageView
+        android:id="@+id/previewImage"
+        android:layout_width="65dp"
+        android:layout_height="wrap_content"
+        android:layout_alignBottom="@+id/textViews"
+        android:layout_alignTop="@id/textViews"
+        android:layout_marginLeft="@dimen/preview_image_margin_h"
+        android:layout_marginRight="@dimen/preview_image_margin_h"
+        android:contentDescription="@string/video_preview_desc"
+        android:scaleType="centerInside"
+        android:src="@android:drawable/presence_video_online" />
+
+    <LinearLayout
+        android:id="@id/textViews"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentRight="true"
+        android:layout_alignParentTop="true"
+        android:layout_toRightOf="@id/previewImage"
+        android:orientation="vertical" >
+
+        <TextView
+            android:id="@+id/videoName"
+            android:layout_width="fill_parent"
+            android:layout_height="fill_parent"
+            android:layout_weight="1"
+            android:textAppearance="?android:attr/textAppearanceMedium" />
+
+        <TextView
+            android:id="@+id/videoInfor"
+            android:layout_width="fill_parent"
+            android:layout_height="fill_parent"
+            android:layout_weight="1"
+            android:textAppearance="?android:attr/textAppearanceSmall" />
+    </LinearLayout>
+
+</RelativeLayout>

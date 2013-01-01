@@ -1,4 +1,4 @@
-package org.programus.nxt.android.lookie_camera;
+package org.programus.nxt.android.lookie_camera.activites;
 
 import java.io.File;
 import java.io.IOException;
@@ -12,12 +12,14 @@ import org.programus.lookie.lib.comm.CameraCommand;
 import org.programus.lookie.lib.utils.Constants;
 import org.programus.lookie.lib.utils.MathUtil;
 import org.programus.lookie.lib.utils.SimpleQueue;
+import org.programus.nxt.android.lookie_camera.R;
 import org.programus.nxt.android.lookie_camera.comm.CommandReceiver;
 import org.programus.nxt.android.lookie_camera.comm.DataBuffer;
 import org.programus.nxt.android.lookie_camera.services.MainService;
 import org.programus.nxt.android.lookie_camera.utils.Logger;
 import org.programus.nxt.android.lookie_camera.video.ImageTransporter;
 import org.programus.nxt.android.lookie_camera.video.JpegVideoRecorder;
+import org.programus.nxt.android.lookie_camera.video.VideoInformation;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
@@ -37,6 +39,7 @@ import android.os.Handler;
 import android.os.Message;
 import android.util.Log;
 import android.view.Menu;
+import android.view.MenuItem;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.View;
@@ -45,6 +48,7 @@ import android.widget.CompoundButton;
 import android.widget.CompoundButton.OnCheckedChangeListener;
 import android.widget.ImageButton;
 import android.widget.TextView;
+import android.widget.Toast;
 import android.widget.ToggleButton;
 
 public class MainActivity extends Activity {
@@ -518,7 +522,7 @@ public class MainActivity extends Activity {
 	private File getOutputImagePath() {
 		File file = null;
 		if (Environment.MEDIA_MOUNTED.equals(Environment.getExternalStorageState())) {
-			File path = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), "Lookie_Record");
+			File path = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), VideoInformation.VIDEO_PATH);
 			if (!path.exists()) {
 				if (!path.mkdirs()) {
 					logger.log("Video save directory cannot be created:" + path.getAbsolutePath());
@@ -695,6 +699,11 @@ public class MainActivity extends Activity {
 		this.toggleServiceButton.setChecked(false);
 		logger.log("Service stopped.");
 	}
+	
+	private void showVideoViewer() {
+		Intent intent = new Intent(this, VideoSelectActivity.class);
+		this.startActivity(intent);
+	}
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -742,6 +751,20 @@ public class MainActivity extends Activity {
 		editor.putBoolean(KEY_CAM_STATE, cameraStarted);
 		editor.putString(KEY_LOG_TEXT, this.logText.getText().toString());
 		editor.commit();
+	}
+
+	@Override
+	public boolean onOptionsItemSelected(MenuItem item) {
+		boolean ret = false;
+		switch (item.getItemId()) {
+		case R.id.menu_video:
+			this.showVideoViewer();
+			ret = true;
+			break;
+		default:
+			ret = super.onOptionsItemSelected(item);
+		}
+		return ret;
 	}
 
 }
