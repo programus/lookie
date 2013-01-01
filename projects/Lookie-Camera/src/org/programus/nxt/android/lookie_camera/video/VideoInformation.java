@@ -57,6 +57,7 @@ public class VideoInformation implements Serializable{
 			File path = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), VIDEO_PATH);
 			if (path.exists()) {
 				File[] vids = path.listFiles(vidPathFilter);
+				Arrays.sort(vids);
 				if (vids != null) {
 					videos = new VideoInformation[vids.length];
 					for (int i = 0; i < videos.length; i++) {
