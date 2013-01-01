@@ -13,6 +13,7 @@ public class CameraMotorService implements Runnable {
 	private final static int ANGLE_RATE = 3 * 5;
 	private final static int MIN_R_ANGLE = 0;
 	private final static int MAX_R_ANGLE = 360 * 5 + 180;
+	private final static int SPEED_RATE = 10;
 	
 	private boolean running = true;
 
@@ -44,7 +45,8 @@ public class CameraMotorService implements Runnable {
 			int da = Math.abs(rotateAngle - currAngle);
 			if (da > 2) {
 				synchronized(this.motor) {
-					this.motor.setSpeed(this.motor.getMaxSpeed());
+//					this.motor.setSpeed(this.motor.getMaxSpeed());
+					this.motor.setSpeed(da * SPEED_RATE);
 					this.motor.rotateTo(rotateAngle, true);
 				}
 			} else {

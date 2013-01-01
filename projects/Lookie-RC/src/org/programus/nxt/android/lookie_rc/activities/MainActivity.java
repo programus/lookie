@@ -70,7 +70,7 @@ public class MainActivity extends Activity {
 	
 	private final static String PREF_NAME = "Lookie-RC";
 	private final static String KEY_CAM_SELECTION = "CamSel";
-	private final static int THRESHOLD = 10;
+	private final static int THRESHOLD = 1;
 	
 	private Button connectButton;
 	private Button exitControl;

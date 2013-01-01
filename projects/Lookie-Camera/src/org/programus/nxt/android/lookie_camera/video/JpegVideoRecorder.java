@@ -125,6 +125,7 @@ public class JpegVideoRecorder {
 				out.println(String.format("h:%d", height));
 				out.println(String.format("fps:%f", fps));
 				out.println(String.format("quality:%d", quality));
+				out.println(String.format("frames:%d", count));
 				out.flush();
 			} catch (FileNotFoundException e) {
 				e.printStackTrace();
