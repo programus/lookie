@@ -33,7 +33,7 @@ public interface Constants {
 	int INVALID_POINTER_ID = -1;
 	
 	int COMPRESS_RATE = 30;
-	int VIDEO_QUALITY = 75;
+	int VIDEO_QUALITY = 80;
 	int SIZE_MIN_WIDTH = 100;
 	int SIZE_DEFAULT_WIDTH = 160;
 	int SIZE_MAX_WIDTH = 1000;
