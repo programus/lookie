@@ -14,5 +14,7 @@
     <string name="play_button_desc">play</string>
     <string name="ff_button_desc">fast forward</string>
     <string name="loading">Video loading...</string>
+    <string name="delete">Delete</string>
+    <string name="deleting">Video Deleting</string>
 
 </resources>

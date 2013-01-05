@@ -71,7 +71,7 @@ public class MainActivity extends Activity {
 	
 	private final static String PREF_NAME = "Lookie-RC";
 	private final static String KEY_CAM_SELECTION = "CamSel";
-	private final static int THRESHOLD = 1;
+	private final static int THRESHOLD = 2;
 	
 	private Button connectButton;
 	private Button exitControl;
@@ -221,11 +221,13 @@ public class MainActivity extends Activity {
 					p.camCommunicator.sendCommand(command);
 					break;
 				}
-				case Constants.CAMERA:
+				case Constants.CAMERA: {
 					byte[] imageData = cmd.getImageData();
 					Bitmap bmp = p.extractBitmap(imageData, cmd.getWidth(), cmd.getHeight(), cmd.getFormat());
 					p.displayCameraPreview(bmp, cmd.getWidth(), cmd.getHeight());
+					bmp.recycle();
 					break;
+				}
 				case Constants.SIZE:
 					p.origSize = new Point(cmd.getWidth(), cmd.getHeight());
 					p.previewSizeSeek.setMax((Math.min(Constants.SIZE_MAX_WIDTH, p.origSize.x) - Constants.SIZE_MIN_WIDTH) >> 1);
@@ -471,7 +473,7 @@ public class MainActivity extends Activity {
 		public void onSensorChanged(SensorEvent event) {
 			float angle = MathUtil.calculateAngle(event.values);
 			float da = angle - zeroAngle;
-			if (da < 0) {
+			if (da < -180) {
 				da += 360;
 			}
 			if (Math.abs(da - prevDa) > THRESHOLD) {
@@ -891,10 +893,11 @@ public class MainActivity extends Activity {
 	}
 	
 	private void setDistance(int distance) {
+		distance -= Constants.DISTANCE_ZERO;
 		if (distance > Constants.DISTANCE_HIDE) {
 			this.distanceText.setVisibility(View.GONE);
 		} else {
-			this.distanceText.setText(String.format("%d cm", distance));
+			this.distanceText.setText(distance >= 0 ? String.format("%d cm", distance) : "!!!");
 			int textColor = this.distanceSafeColor;
 			if (distance < Constants.DISTANCE_DANGER) {
 				textColor = this.distanceDangerColor;

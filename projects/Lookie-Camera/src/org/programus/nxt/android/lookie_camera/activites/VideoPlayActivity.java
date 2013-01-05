@@ -18,6 +18,7 @@ import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Rect;
+import android.media.MediaPlayer;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
@@ -54,6 +55,8 @@ public class VideoPlayActivity extends Activity {
 	private View ctrlView;
 	private View touchPlayView;
 	
+	private MediaPlayer audioPlayer;
+	
 	private boolean playing;
 	
 	private VideoInformation video;
@@ -63,6 +66,8 @@ public class VideoPlayActivity extends Activity {
 	
 	private Timer playTimer;
 	private volatile int index;
+	
+	private BitmapFactory.Options bmpOptions;
 	
 	private Handler handler = new UIHandler(this);
 	
@@ -97,6 +102,7 @@ public class VideoPlayActivity extends Activity {
 				if (bmp != null) {
 					Log.d(TAG, "draw surface");
 					drawSurface(bmp);
+					bmp.recycle();
 				}
 			}
 		}
@@ -176,6 +182,11 @@ public class VideoPlayActivity extends Activity {
 		
 		this.ctrlView.setVisibility(View.GONE);
 		this.loadingText.setVisibility(View.GONE);
+		
+		this.bmpOptions = new BitmapFactory.Options();
+		bmpOptions.inPurgeable = true;
+		bmpOptions.inDither = false;
+		bmpOptions.inInputShareable = true;
 	}
 	
 	private void initPlayer() {
@@ -199,7 +210,7 @@ public class VideoPlayActivity extends Activity {
 		Log.d(TAG, "load image:" + index);
 		if (index < video.getImages().length && index >= 0) {
 			File img = video.getImages()[index];
-			Bitmap bmp = BitmapFactory.decodeFile(img.getAbsolutePath());
+			Bitmap bmp = BitmapFactory.decodeFile(img.getAbsolutePath(), this.bmpOptions);
 			if (bmp != null) {
 				synchronized (bmpQ) {
 					bmpQ.offer(bmp);
@@ -228,17 +239,58 @@ public class VideoPlayActivity extends Activity {
 			this.index = 0;
 		}
 		this.playing = true;
+		this.playAudio();
 		this.ctrlView.setVisibility(View.GONE);
+		this.getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+	}
+	
+	private void playAudio() {
+		if (this.prepareAudio()) {
+			int position = (int) (1000 * index / video.getFps());
+			this.audioPlayer.seekTo(position);
+			this.audioPlayer.start();
+		}
+	}
+	
+	private boolean prepareAudio() {
+		boolean success = true;
+		File audioFile = this.video.getAudioFile();
+		success = audioFile.exists();
+		if (success) {
+			this.audioPlayer = new MediaPlayer();
+			try {
+				this.audioPlayer.setDataSource(audioFile.getAbsolutePath());
+				this.audioPlayer.prepare();
+			} catch (Exception e) {
+				this.audioPlayer.release();
+				this.audioPlayer = null;
+				success = false;
+				e.printStackTrace();
+			}
+		}
+		return success;
 	}
 	
 	private void stop() {
 		this.playing = false;
+		this.stopAudio();
 		synchronized (bmpQ) {
 			this.index -= bmpQ.size();
-			bmpQ.clear();
+			while (!bmpQ.isEmpty()) {
+				bmpQ.poll().recycle();
+			}
 		}
 		this.updateProgress();
 		this.ctrlView.setVisibility(View.VISIBLE);
+		this.getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+	}
+	
+	private void stopAudio() {
+		if (this.audioPlayer != null) {
+			this.audioPlayer.pause();
+			this.audioPlayer.release();
+			this.audioPlayer = null;
+		}
 	}
 	
 	private void drawSurface(Bitmap bmp) {

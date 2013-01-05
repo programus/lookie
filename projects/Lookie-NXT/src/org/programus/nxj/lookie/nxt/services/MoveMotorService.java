@@ -30,7 +30,7 @@ public class MoveMotorService implements Runnable {
 				cmd = q.poll();
 			}
 			float speed = cmd.getData();
-			boolean forward = speed < 0;
+			boolean forward = speed > 0;
 			speed = Math.abs(speed);
 			synchronized(this.motor) {
 				if (speed > 0.01) {

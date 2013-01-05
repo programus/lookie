@@ -13,7 +13,7 @@ public class CameraMotorService implements Runnable {
 	private final static int ANGLE_RATE = 5;
 	private final static int MIN_R_ANGLE = 0;
 	private final static int MAX_R_ANGLE = 450;
-	private final static int SPEED_RATE = 50;
+	private final static int SPEED_RATE = 3;
 	
 	private boolean running = true;
 

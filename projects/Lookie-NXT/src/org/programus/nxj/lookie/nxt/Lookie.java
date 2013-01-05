@@ -31,7 +31,7 @@ import org.programus.nxj.lookie.nxt.utils.NotifyTypes;
 
 public class Lookie {
 	
-	public final static NXTRegulatedMotor[] wheels = {Motor.B, Motor.C};
+	public final static NXTRegulatedMotor[] wheels = {Motor.C, Motor.B};
 	public final static NXTRegulatedMotor head = Motor.A;
 	public final static TouchSensor[] stopSensors = {new TouchSensor(SensorPort.S1), new TouchSensor(SensorPort.S4)};
 	public final static UltrasonicSensor distanceSensor = new UltrasonicSensor(SensorPort.S2);

@@ -21,8 +21,8 @@ public class DistanceService implements Runnable {
 		SimpleQueue<CommandMessage> q = DataBuffer.getInstance().getSendQueue();
 		while (this.running) {
 			int distance = sensor.getDistance();
-			if (distance > Constants.DISTANCE_HIDE) {
-				distance = Constants.DISTANCE_HIDE + 1;
+			if (distance > Constants.DISTANCE_HIDE + Constants.DISTANCE_ZERO) {
+				distance = Constants.DISTANCE_HIDE + Constants.DISTANCE_ZERO + 1;
 			}
 			if (distance != prevDistance) {
 				CommandMessage cmd = new CommandMessage();

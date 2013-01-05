@@ -7,7 +7,9 @@ import java.io.FileReader;
 import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Locale;
 
 import android.graphics.Bitmap;
@@ -19,6 +21,7 @@ public class VideoInformation implements Serializable{
 	
 	public final static String VIDEO_PATH = "Lookie_Record";
 	public final static String INFO_FILENAME = "info.txt";
+	public final static String AUDIO_FILENAME = "audio.3gp";
 	
 	private String name;
 	private int width;
@@ -29,6 +32,7 @@ public class VideoInformation implements Serializable{
 	
 	private File path;
 	private File[] images;
+	private File audioFile;
 	
 	private transient Bitmap previewImage;
 	
@@ -51,20 +55,19 @@ public class VideoInformation implements Serializable{
 		}
 	};
 	
-	public static VideoInformation[] getVideoList() {
-		VideoInformation[] videos = null;
+	public static List<VideoInformation> getVideoList() {
+		List<VideoInformation> videos = null;
 		if (Environment.MEDIA_MOUNTED.equals(Environment.getExternalStorageState())) {
 			File path = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), VIDEO_PATH);
 			if (path.exists()) {
 				File[] vids = path.listFiles(vidPathFilter);
 				Arrays.sort(vids);
 				if (vids != null) {
-					videos = new VideoInformation[vids.length];
-					for (int i = 0; i < videos.length; i++) {
+					videos = new ArrayList<VideoInformation>(vids.length);
+					for (int i = 0; i < vids.length; i++) {
 						try {
-							videos[i] = new VideoInformation(vids[i]);
+							videos.add(new VideoInformation(vids[i]));
 						} catch (IOException e) {
-							videos[i] = null;
 						}
 					}
 				}
@@ -118,6 +121,7 @@ public class VideoInformation implements Serializable{
 		this.path = path;
 		this.name = path.getName();
 		this.images = path.listFiles(jpgFilter);
+		this.audioFile = new File(path, AUDIO_FILENAME);
 		Arrays.sort(this.images);
 		if (this.frames == 0 && this.images != null) {
 			this.frames = this.images.length;
@@ -149,6 +153,10 @@ public class VideoInformation implements Serializable{
 
 	public File[] getImages() {
 		return images;
+	}
+	
+	public File getAudioFile() {
+		return audioFile;
 	}
 	
 	public Bitmap getPreviewImage() {

@@ -34,6 +34,7 @@ public class CommandReceiver implements Runnable {
 			} catch (IOException e) {
 				Sound.buzz();
 				this.notifier.notifyMessage(NotifyTypes.IOEXCEPTION, e);
+				break;
 			}
 			
 			if (cmd != null) {

@@ -48,6 +48,7 @@ public class JpegVideoRecorder {
 			int count = 0;
 			long startTime = -1;
 			long endTime = -1;
+			ThreadGroup tg = new ThreadGroup("File write threads");
 			while (recording) {
 				while (recording && processQ.isEmpty()) {
 					Thread.yield();
@@ -58,6 +59,7 @@ public class JpegVideoRecorder {
 					synchronized (processQ) {
 						frame = processQ.poll();
 						Log.d(TAG, "Q len:" + processQ.size());
+						Log.d(TAG, "Files: " + tg.activeCount());
 					}
 					if (frame != null) {
 						if (startTime < 0) {
@@ -71,7 +73,7 @@ public class JpegVideoRecorder {
 						
 						if (this.prevDataLength < maxDataLimit || this.prevDataLength == 0) {
 							endTime = frame.sysTime;
-							this.writeFrame2File(frame.nv21, String.format("Frame_%010d.jpg", count++));
+							this.writeFrame2File(frame.nv21, String.format("Frame_%010d.jpg", count++), tg);
 							this.prevDataLength = frame.nv21.length;
 							this.prevSentTime = frame.sysTime;
 						}
@@ -84,8 +86,8 @@ public class JpegVideoRecorder {
 			this.prevSentTime = 0;
 		}
 		
-		private void writeFrame2File(final byte[] nv21, final String filename) {
-			Thread t = new Thread(new Runnable() {
+		private void writeFrame2File(final byte[] nv21, final String filename, final ThreadGroup group) {
+			Thread t = new Thread(group, new Runnable() {
 				@Override
 				public void run() {
 					File file = new File(path, filename);
@@ -115,7 +117,7 @@ public class JpegVideoRecorder {
 		}
 		
 		private void writeInformation2File(int count, long dt) {
-			double fps = count * 1000 / dt;
+			double fps = count * 1000. / dt;
 			File file = new File(path, VideoInformation.INFO_FILENAME);
 			PrintStream out = null;
 			try {
@@ -166,9 +168,11 @@ public class JpegVideoRecorder {
 	}
 	
 	public void putFrame(byte[] nv21, long time) {
+		byte[] buff = new byte[nv21.length];
+		System.arraycopy(nv21, 0, buff, 0, nv21.length);
 		if (time - this.prevTime > this.interval) {
 			FrameInformation frame = new FrameInformation();
-			frame.nv21 = nv21;
+			frame.nv21 = buff;
 			frame.sysTime = time;
 			synchronized (this.processQ) {
 				this.processQ.offer(frame);

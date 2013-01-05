@@ -39,7 +39,7 @@ public class CommandSender implements Runnable {
 				int v = this.motors[i].getRotationSpeed();
 				if (v != pvs[i]) {
 					cmd.setCommand(i);
-					cmd.setData(-v);
+					cmd.setData(v);
 					pvs[i] = v;
 					this.sendCommand(cmd);
 				}

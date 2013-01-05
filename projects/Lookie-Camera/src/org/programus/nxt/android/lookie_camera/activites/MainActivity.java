@@ -33,6 +33,7 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
+import android.media.MediaRecorder;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
@@ -48,7 +49,6 @@ import android.widget.CompoundButton;
 import android.widget.CompoundButton.OnCheckedChangeListener;
 import android.widget.ImageButton;
 import android.widget.TextView;
-import android.widget.Toast;
 import android.widget.ToggleButton;
 
 public class MainActivity extends Activity {
@@ -68,8 +68,10 @@ public class MainActivity extends Activity {
 	private Camera camera;
 	private ImageTransporter imgTransporter;
 	
-//	private MediaRecorder recorder;
+	private MediaRecorder recorder;
+	private boolean audioRecording;
 	private JpegVideoRecorder vrecorder;
+	private File imagePath;
 //	private boolean recording;
 	@SuppressLint("SimpleDateFormat")
 	private SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd_HHmmss");
@@ -148,10 +150,12 @@ public class MainActivity extends Activity {
 					if (cmd.getFormat() > 0) {
 //						p.startRecording();
 						p.startVideoRecording();
+						p.startAudioRecording();
 						p.feedbackRecordResult();
 					} else {
 //						p.stopRecording();
 						p.stopVideoRecording();
+						p.stopAudioRecording();
 					}
 					break;
 				case Constants.FOCUS:
@@ -338,6 +342,31 @@ public class MainActivity extends Activity {
 		this.setupDefaultSendSize(this.origSize.x, this.origSize.y);
 	}
 	
+	private boolean prepareAudioRecorder() {
+		boolean success = true;
+		File outputFile = this.getOutputAudioFile();
+		if (outputFile == null) {
+			success = false;
+		} else {
+			this.recorder = new MediaRecorder();
+			this.recorder.setAudioSource(MediaRecorder.AudioSource.CAMCORDER);
+			this.recorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
+			this.recorder.setOutputFile(outputFile.getAbsolutePath());
+			this.recorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB);
+			try {
+				this.recorder.prepare();
+				success = true;
+			} catch (IllegalStateException e) {
+				success = false;
+				e.printStackTrace();
+			} catch (IOException e) {
+				e.printStackTrace();
+				success = false;
+			}
+		}
+		return success;
+	}
+	
 //	/**
 //	 * This method is not be used since retrieving preview data is not possible while recording on android.
 //	 */
@@ -423,6 +452,13 @@ public class MainActivity extends Activity {
 		this.vrecorder.startRecord();
 	}
 	
+	private void startAudioRecording() {
+		if (this.prepareAudioRecorder()) {
+			this.recorder.start();
+			this.audioRecording = true;
+		}
+	}
+	
 //	/**
 //	 * This method is not be used since retrieving preview data is not possible while recording on android.
 //	 */
@@ -467,6 +503,15 @@ public class MainActivity extends Activity {
 	private void stopVideoRecording() {
 		if (this.vrecorder.isRecording()) {
 			this.vrecorder.stopRecord();
+			this.imagePath = null;
+		}
+	}
+	
+	private void stopAudioRecording() {
+		if (this.audioRecording) {
+			this.recorder.stop();
+			this.recorder.release();
+			this.recorder = null;
 		}
 	}
 	
@@ -520,26 +565,34 @@ public class MainActivity extends Activity {
 //	}
 	
 	private File getOutputImagePath() {
-		File file = null;
-		if (Environment.MEDIA_MOUNTED.equals(Environment.getExternalStorageState())) {
-			File path = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), VideoInformation.VIDEO_PATH);
-			if (!path.exists()) {
-				if (!path.mkdirs()) {
-					logger.log("Video save directory cannot be created:" + path.getAbsolutePath());
-					return null;
+		if (this.imagePath == null) {
+			File file = null;
+			if (Environment.MEDIA_MOUNTED.equals(Environment.getExternalStorageState())) {
+				File path = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), VideoInformation.VIDEO_PATH);
+				if (!path.exists()) {
+					if (!path.mkdirs()) {
+						logger.log("Video save directory cannot be created:" + path.getAbsolutePath());
+						return null;
+					}
+				}
+				
+				String timestamp = this.sdf.format(Calendar.getInstance().getTime());
+				String filename = String.format(Locale.ENGLISH, "Lookie_JPGs_%s", timestamp);
+				file = new File(path, filename);
+				if (!file.exists()) {
+					if (!file.mkdirs()) {
+						file = null;
+					}
 				}
 			}
-			
-			String timestamp = this.sdf.format(Calendar.getInstance().getTime());
-			String filename = String.format(Locale.ENGLISH, "Lookie_JPGs_%s", timestamp);
-			file = new File(path, filename);
-			if (!file.exists()) {
-				if (!file.mkdirs()) {
-					file = null;
-				}
-			}
+			this.imagePath = file;
 		}
-		return file;
+		return this.imagePath;
+	}
+	
+	private File getOutputAudioFile() {
+		File path = this.getOutputImagePath();
+		return path == null ? null : new File(path, VideoInformation.AUDIO_FILENAME);
 	}
 	
 	private void setupDefaultSendSize(int width, int height) {
