@@ -114,12 +114,15 @@ public class ImageTransporter {
 	}
 	
 	public void transportFrame(byte[] nv21, int srcWidth, int srcHeight, int dstWidth, int dstHeight, long time, int format, int quality) {
+		byte[] buff = new byte[nv21.length];
+		System.arraycopy(nv21, 0, buff, 0, nv21.length);
+		nv21 = null;
 		ImageInformation ii = new ImageInformation();
 		ii.srcWidth = srcWidth;
 		ii.srcHeight = srcHeight;
 		ii.dstWidth = dstWidth;
 		ii.dstHeight = dstHeight;
-		ii.nv21 = ImageUtilities.scaleNV21Image(nv21, srcWidth, srcHeight, dstWidth, dstHeight);
+		ii.nv21 = ImageUtilities.scaleNV21Image(buff, srcWidth, srcHeight, dstWidth, dstHeight);
 		ii.format = format;
 		ii.quality = quality;
 		ii.sysTime = time;

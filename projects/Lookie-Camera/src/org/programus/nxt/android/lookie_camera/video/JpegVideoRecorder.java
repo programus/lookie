@@ -169,6 +169,7 @@ public class JpegVideoRecorder {
 	
 	public void putFrame(byte[] nv21, long time) {
 		byte[] buff = new byte[nv21.length];
+		Log.d(TAG, "raw len:" + nv21.length);
 		System.arraycopy(nv21, 0, buff, 0, nv21.length);
 		if (time - this.prevTime > this.interval) {
 			FrameInformation frame = new FrameInformation();

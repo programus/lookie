@@ -246,7 +246,7 @@ public class VideoPlayActivity extends Activity {
 	
 	private void playAudio() {
 		if (this.prepareAudio()) {
-			int position = (int) (1000 * index / video.getFps());
+			int position = index * (int) (1000 / video.getFps());
 			this.audioPlayer.seekTo(position);
 			this.audioPlayer.start();
 		}

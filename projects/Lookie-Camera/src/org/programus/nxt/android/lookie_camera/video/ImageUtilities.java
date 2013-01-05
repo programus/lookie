@@ -20,7 +20,13 @@ public class ImageUtilities {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		return out.toByteArray();
+		byte[] ret = out.toByteArray();
+		try {
+			out.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		return ret;
 	}
 	
 	public static byte[] compressYuvImage2Jpeg(byte[] data, int format, int quality, int width, int height) {
@@ -28,7 +34,13 @@ public class ImageUtilities {
 		Rect rect = new Rect(0, 0, width, height);
 		ByteArrayOutputStream out = new ByteArrayOutputStream();
 		yuvImage.compressToJpeg(rect, quality, out);
-		return out.toByteArray();
+		byte[] ret = out.toByteArray();
+		try {
+			out.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		return ret;
 	}
 	
 	public static byte[] compressData(byte[] data) {
@@ -45,7 +57,13 @@ public class ImageUtilities {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		return out.toByteArray();
+		byte[] ret = out.toByteArray();
+		try {
+			out.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		return ret;
 	}
 
 	public static byte[] scaleNV21Image(byte[] data, int srcWidth, int srcHeight, int dstWidth, int dstHeight) {

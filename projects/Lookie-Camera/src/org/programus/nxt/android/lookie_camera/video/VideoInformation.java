@@ -15,9 +15,11 @@ import java.util.Locale;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.Environment;
+import android.util.Log;
 
 public class VideoInformation implements Serializable{
 	private static final long serialVersionUID = -6596108845433074639L;
+	private static final String TAG = "VidInfo";
 	
 	public final static String VIDEO_PATH = "Lookie_Record";
 	public final static String INFO_FILENAME = "info.txt";
@@ -163,8 +165,16 @@ public class VideoInformation implements Serializable{
 		if (this.previewImage == null) {
 			if (this.images != null && this.images.length > 0) {
 				File img = this.images[0];
-				Bitmap bmp = BitmapFactory.decodeFile(img.getAbsolutePath());
-				this.previewImage = Bitmap.createScaledBitmap(bmp, bmp.getWidth() >> 1, bmp.getHeight() >> 1, true);
+				BitmapFactory.Options opts = new BitmapFactory.Options();
+				opts.inDither = false;
+				opts.inInputShareable = true;
+				opts.inPurgeable = true;
+				opts.inScaled = true;
+				opts.inSampleSize = 4;
+				Bitmap bmp = BitmapFactory.decodeFile(img.getAbsolutePath(), opts);
+				Log.d(TAG, String.format("bmp size: %d x %d", bmp.getWidth(), bmp.getHeight()));
+				this.previewImage = Bitmap.createScaledBitmap(bmp, this.width >> 2, this.height >> 2, true);
+				bmp.recycle();
 			}
 		}
 		return this.previewImage;
