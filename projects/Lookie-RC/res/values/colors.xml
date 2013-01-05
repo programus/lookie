@@ -8,8 +8,8 @@
     <color name="focus_focusing_color">#7efff033</color>
     <color name="focus_success">#7e33ff33</color>
     <color name="focus_failed">#7eff3333</color>
-    <color name="distance_safe_color">#9033ff33</color>
-    <color name="distance_warn_color">#90ffff33</color>
-    <color name="distance_danger_color">#90ff3333</color>
+    <color name="distance_safe_color">#d000aa00</color>
+    <color name="distance_warn_color">#d0ffaa00</color>
+    <color name="distance_danger_color">#d0aa0000</color>
     
 </resources>
