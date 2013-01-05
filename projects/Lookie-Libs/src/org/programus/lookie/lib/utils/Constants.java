@@ -42,10 +42,15 @@ public interface Constants {
 	int MAX_DISK_BPMS = Integer.MAX_VALUE;
 	int MAX_FPS = 25;
 	
+	int DISTANCE_DANGER = 10;
+	int DISTANCE_WARN = 15;
+	int DISTANCE_HIDE = 100;
+	
 	int LEFT = 0;
 	int RIGHT = 1;
 	int MID = 2;
 	int CALIBRATE = 4;
+	int DISTANCE = 6;
 	int CAMERA = 8;
 	int SIZE = 16;
 	int QUALITY = 17;

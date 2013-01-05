@@ -9,19 +9,41 @@ import org.programus.nxj.lookie.nxt.utils.NotifyTypes;
 
 public class InitCalibrateService implements Runnable {
 	private NXTRegulatedMotor motor;
-	private TouchSensor stopSensor;
+	private TouchSensor[] stopSensors;
 	private Notifiable notifier;
-	private final static int calibrateSpeed = 500;
+	private final static int calibrateSpeed = 200;
 	
-	public InitCalibrateService(NXTRegulatedMotor motor, TouchSensor stopSensor, Notifiable notifier) {
+	public InitCalibrateService(NXTRegulatedMotor motor, TouchSensor[] stopSensors, Notifiable notifier) {
 		this.motor = motor;
-		this.stopSensor = stopSensor;
+		this.stopSensors = stopSensors;
 		this.notifier = notifier;
 	}
 	
+	private boolean isAnySensorPressed() {
+		boolean ret = false;
+		for (TouchSensor sensor : this.stopSensors) {
+			if (sensor.isPressed()) {
+				ret = true;
+				break;
+			}
+		}
+		return ret;
+	}
+	
+//	private boolean isAllSensorPressed() {
+//		boolean ret = true;
+//		for (TouchSensor sensor: this.stopSensors) {
+//			if (!sensor.isPressed()) {
+//				ret = false;
+//				break;
+//			}
+//		}
+//		return ret;
+//	}
+//	
 	@Override
 	public void run() {
-		while (!this.stopSensor.isPressed()) {
+		while (!this.isAnySensorPressed()) {
 			if (!this.motor.isMoving()) {
 				this.motor.setSpeed(calibrateSpeed);
 				this.motor.backward();

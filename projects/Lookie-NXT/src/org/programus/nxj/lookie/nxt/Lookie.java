@@ -23,6 +23,7 @@ import org.programus.nxj.lookie.nxt.comm.CommandReceiver;
 import org.programus.nxj.lookie.nxt.comm.CommandSender;
 import org.programus.nxj.lookie.nxt.comm.DataBuffer;
 import org.programus.nxj.lookie.nxt.services.CameraMotorService;
+import org.programus.nxj.lookie.nxt.services.DistanceService;
 import org.programus.nxj.lookie.nxt.services.InitCalibrateService;
 import org.programus.nxj.lookie.nxt.services.MoveMotorService;
 import org.programus.nxj.lookie.nxt.utils.Notifiable;
@@ -30,12 +31,10 @@ import org.programus.nxj.lookie.nxt.utils.NotifyTypes;
 
 public class Lookie {
 	
-	public final static NXTRegulatedMotor[] wheels = {Motor.C, Motor.B};
+	public final static NXTRegulatedMotor[] wheels = {Motor.B, Motor.C};
 	public final static NXTRegulatedMotor head = Motor.A;
-	public final static TouchSensor stopSensor = new TouchSensor(SensorPort.S2);
-	public final static UltrasonicSensor distanceSensor = new UltrasonicSensor(SensorPort.S3);
-	
-	public final static int MIN_DISTANCE = 10;
+	public final static TouchSensor[] stopSensors = {new TouchSensor(SensorPort.S1), new TouchSensor(SensorPort.S4)};
+	public final static UltrasonicSensor distanceSensor = new UltrasonicSensor(SensorPort.S2);
 	
 	private static boolean running = true;
 	private static SimpleQueue<CommandMessage> criticalQ = DataBuffer.getInstance().getReadQueues()[DataBuffer.CONN_CMD_INDEX];
@@ -65,7 +64,7 @@ public class Lookie {
 	};
 	
 	private static Thread initCalibrate() {
-		Thread t = new Thread(new InitCalibrateService(head, stopSensor, notifier), "init calibrate");
+		Thread t = new Thread(new InitCalibrateService(head, stopSensors, notifier), "init calibrate");
 		t.setDaemon(true);
 		t.start();
 		return t;
@@ -97,12 +96,12 @@ public class Lookie {
 			DataOutputStream out = conn.openDataOutputStream();
 			CommandReceiver receiver = new CommandReceiver(in, notifier);
 			Thread rcvT = new Thread(receiver, "Rcv");
-			rcvT.setDaemon(true);
+			rcvT.setDaemon(false);
 			rcvT.start();
 			
 			CommandSender sender = new CommandSender(out, wheels, notifier);
 			Thread sndT = new Thread(sender, "Snd");
-			sndT.setDaemon(true);
+			sndT.setDaemon(false);
 			sndT.start();
 			
 			MoveMotorService[] wheelServices = new MoveMotorService[wheels.length];
@@ -118,11 +117,13 @@ public class Lookie {
 			tc.setDaemon(true);
 			tc.start();
 			
+			DistanceService distanceService = new DistanceService(distanceSensor);
+			Thread td = new Thread(distanceService, "Distance");
+			td.setDaemon(true);
+			td.start();
+			
 			while (running) {
 				while (criticalQ.isEmpty() && running) {
-					if (distanceSensor.getDistance() < MIN_DISTANCE) {
-						Sound.beep();
-					}
 					Thread.yield();
 				}
 				
@@ -142,6 +143,7 @@ public class Lookie {
 					s.end();
 				}
 				cameraService.end();
+				distanceService.end();
 				Thread.yield();
 			}
 			

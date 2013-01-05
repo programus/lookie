@@ -83,6 +83,15 @@
                 android:textOff="@string/light"
                 android:textOn="@string/light" />
 
+            <TextView
+                android:id="@+id/distanceText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignBottom="@id/toggleLight"
+                android:layout_alignTop="@id/toggleLight"
+                android:layout_toLeftOf="@id/toggleLight"
+                android:gravity="right|center_vertical" />
+
             <SeekBar
                 android:id="@+id/previewQualitySeek"
                 android:layout_width="match_parent"

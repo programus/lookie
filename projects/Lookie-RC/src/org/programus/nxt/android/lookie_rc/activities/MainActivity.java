@@ -28,6 +28,7 @@ import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
@@ -81,9 +82,14 @@ public class MainActivity extends Activity {
 	private SeekBar previewQualitySeek;
 	private TextView qualityText;
 	private ToggleButton toggleLight;
+	private TextView distanceText;
 	private ImageButton recordButton;
 	private Button focusButton;
 	private View focusFrameView;
+	
+	private int distanceSafeColor;
+	private int distanceWarnColor;
+	private int distanceDangerColor;
 	
 	private GradientDrawable focusFrame;
 	
@@ -195,6 +201,9 @@ public class MainActivity extends Activity {
 					p.camCommunicator.sendCommand(cmd);
 					break;
 				}
+				case Constants.DISTANCE:
+					p.setDistance((int) speed);
+					break;
 				default:
 					Log.w(TAG, "Wrong Command");
 					break;
@@ -636,6 +645,7 @@ public class MainActivity extends Activity {
 		this.previewQualitySeek = (SeekBar) this.findViewById(R.id.previewQualitySeek);
 		this.qualityText = (TextView) this.findViewById(R.id.qualityText);
 		this.toggleLight = (ToggleButton) this.findViewById(R.id.toggleLight);
+		this.distanceText = (TextView) this.findViewById(R.id.distanceText);
 		this.recordButton = (ImageButton) this.findViewById(R.id.recordButton);
 		this.focusButton = (Button) this.findViewById(R.id.focusButton);
 		this.focusFrameView = this.findViewById(R.id.focusFrameView);
@@ -678,6 +688,11 @@ public class MainActivity extends Activity {
 		this.connectButton.setOnClickListener(connectClickListener);
 		this.exitControl.setOnClickListener(exitControlClickListener);
 		this.controlView.setOnTouchListener(speedControlTouchListener);
+		
+		Resources res = this.getResources();
+		this.distanceDangerColor = res.getColor(R.color.distance_danger_color);
+		this.distanceWarnColor = res.getColor(R.color.distance_warn_color);
+		this.distanceSafeColor = res.getColor(R.color.distance_safe_color);
 	}
 	
 	private void setupDevicesForSpinner() {
@@ -872,6 +887,23 @@ public class MainActivity extends Activity {
 		this.focusButton.setEnabled(!focusing);
 		if (!focusing) {
 			handler.sendEmptyMessageDelayed(Constants.MSG_WHAT_FOCUS_RESTORE, 500);
+		}
+	}
+	
+	private void setDistance(int distance) {
+		if (distance > Constants.DISTANCE_HIDE) {
+			this.distanceText.setVisibility(View.GONE);
+		} else {
+			this.distanceText.setText(String.format("%d cm", distance));
+			int textColor = this.distanceSafeColor;
+			if (distance < Constants.DISTANCE_DANGER) {
+				textColor = this.distanceDangerColor;
+			} else if (distance < Constants.DISTANCE_WARN) {
+				textColor = this.distanceWarnColor;
+			}
+			
+			this.distanceText.setTextColor(textColor);
+			this.distanceText.setVisibility(View.VISIBLE);
 		}
 	}
 
