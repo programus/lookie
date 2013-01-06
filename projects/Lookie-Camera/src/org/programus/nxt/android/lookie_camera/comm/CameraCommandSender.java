@@ -64,8 +64,9 @@ public class CameraCommandSender implements Runnable {
 			try {
 				synchronized(out) {
 					Log.d(TAG, String.format("Send => %s", cmd.toString()));
-					out.writeObject(cmd);
+					out.writeUnshared(cmd);
 					out.flush();
+					out.reset();
 					ret = true;
 				}
 			} catch (IOException e) {
@@ -82,8 +83,9 @@ public class CameraCommandSender implements Runnable {
 		synchronized (out) {
 			try {
 				Log.d(TAG, String.format("Send => %s", cmd.toString()));
-				out.writeObject(cmd);
+				out.writeUnshared(cmd);
 				out.flush();
+				out.reset();
 			} catch (IOException e) {
 				this.processException(e);
 			} finally {

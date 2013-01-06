@@ -1,5 +1,8 @@
 package org.programus.lookie.lib.comm;
 
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
 import java.io.Serializable;
 
 public class CameraCommand implements Serializable {
@@ -56,6 +59,43 @@ public class CameraCommand implements Serializable {
 	public void setFormat(int format) {
 		this.format = format;
 	}
+	
+	public void write(DataOutputStream out) throws IOException {
+		out.writeInt(command);
+		out.writeLong(systemTime);
+		out.writeFloat(angle);
+		out.writeInt(format);
+		out.writeInt(width);
+		out.writeInt(height);
+		out.writeInt(imageData == null ? 0 : imageData.length);
+		if (imageData != null) {
+			out.write(imageData, 0, imageData.length);
+		}
+		out.flush();
+	}
+	
+	public void read(DataInputStream in) throws IOException {
+		this.command = in.readInt();
+		this.systemTime = in.readLong();
+		this.angle = in.readFloat();
+		this.format = in.readInt();
+		this.width = in.readInt();
+		this.height = in.readInt();
+		int len = in.readInt();
+		if (len > 0) {
+			this.imageData = new byte[len];
+			in.read(imageData, 0, len);
+		} else {
+			this.imageData = null;
+		}
+	}
+	
+	public static CameraCommand readNew(DataInputStream in) throws IOException {
+		CameraCommand cmd = new CameraCommand();
+		cmd.read(in);
+		return cmd;
+	}
+	
 	@Override
 	public String toString() {
 		StringBuilder sb = new StringBuilder();

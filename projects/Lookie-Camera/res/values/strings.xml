@@ -16,5 +16,7 @@
     <string name="loading">Video loading...</string>
     <string name="delete">Delete</string>
     <string name="deleting">Video Deleting</string>
+    <string name="record_process">:record_process</string>
+    <string name="player_process">:player_process</string>
 
 </resources>

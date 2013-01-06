@@ -12,7 +12,6 @@ import org.programus.lookie.lib.utils.Constants;
 
 import android.graphics.ImageFormat;
 import android.graphics.Rect;
-import android.graphics.YuvImage;
 import android.util.Log;
 
 public class JpegVideoRecorder {
@@ -22,7 +21,10 @@ public class JpegVideoRecorder {
 		private long sysTime;
 	}
 	
+	private ReusePool<byte[]> reuseNv21 = new ReusePool<byte[]>();
+	
 	private boolean recording;
+	private OnErrorListener onErrorListener;
 	
 	private Queue<FrameInformation> processQ = new LinkedList<FrameInformation>();
 	
@@ -45,70 +47,86 @@ public class JpegVideoRecorder {
 		
 		@Override
 		public void run() {
-			int count = 0;
-			long startTime = -1;
-			long endTime = -1;
-			ThreadGroup tg = new ThreadGroup("File write threads");
-			while (recording) {
-				while (recording && processQ.isEmpty()) {
-					Thread.yield();
+			try {
+				int count = 0;
+				long startTime = -1;
+				long endTime = -1;
+				ThreadGroup tg = new ThreadGroup("File write threads");
+				while (recording) {
+					while (recording && processQ.isEmpty()) {
+						Thread.yield();
+					}
+					
+					while (!processQ.isEmpty()) {
+						FrameInformation frame = null;
+						synchronized (processQ) {
+							frame = processQ.poll();
+							Log.d(TAG, "Q len:" + processQ.size());
+							Log.d(TAG, "Files: " + tg.activeCount());
+						}
+						if (frame != null) {
+							if (startTime < 0) {
+								startTime = frame.sysTime;
+							}
+							
+							// the time past from last sent
+							long dt = frame.sysTime - prevSentTime;
+							// the max possible transfer data size during this period
+							long maxDataLimit = Constants.MAX_DISK_BPMS * dt;
+							
+							if (this.prevDataLength < maxDataLimit || this.prevDataLength == 0) {
+								endTime = frame.sysTime;
+								this.prevDataLength = frame.nv21.length;
+								this.prevSentTime = frame.sysTime;
+								this.writeFrame2File(frame, String.format("Frame_%010d.jpg", count++), tg);
+							}
+						}
+					}
 				}
-				
-				while (!processQ.isEmpty()) {
-					FrameInformation frame = null;
-					synchronized (processQ) {
-						frame = processQ.poll();
-						Log.d(TAG, "Q len:" + processQ.size());
-						Log.d(TAG, "Files: " + tg.activeCount());
-					}
-					if (frame != null) {
-						if (startTime < 0) {
-							startTime = frame.sysTime;
-						}
-						
-						// the time past from last sent
-						long dt = frame.sysTime - prevSentTime;
-						// the max possible transfer data size during this period
-						long maxDataLimit = Constants.MAX_DISK_BPMS * dt;
-						
-						if (this.prevDataLength < maxDataLimit || this.prevDataLength == 0) {
-							endTime = frame.sysTime;
-							this.writeFrame2File(frame.nv21, String.format("Frame_%010d.jpg", count++), tg);
-							this.prevDataLength = frame.nv21.length;
-							this.prevSentTime = frame.sysTime;
-						}
-						frame = null;
-					}
+				this.writeInformation2File(count, endTime - startTime);
+				this.prevDataLength = 0;
+				this.prevSentTime = 0;
+			} catch (Throwable e) {
+				if (onErrorListener != null) {
+					onErrorListener.onError(e);
+				} else {
+					e.printStackTrace();
 				}
 			}
-			this.writeInformation2File(count, endTime - startTime);
-			this.prevDataLength = 0;
-			this.prevSentTime = 0;
 		}
 		
-		private void writeFrame2File(final byte[] nv21, final String filename, final ThreadGroup group) {
+		private void writeFrame2File(final FrameInformation frame, final String filename, final ThreadGroup group) {
 			Thread t = new Thread(group, new Runnable() {
 				@Override
 				public void run() {
-					File file = new File(path, filename);
-					Log.d(TAG, String.format("Write to file: %s", file.getAbsolutePath()));
-					FileOutputStream out = null;
 					try {
-						out = new FileOutputStream(file);
-						YuvImage image = new YuvImage(nv21, format, width, height, null);
-						image.compressToJpeg(rect, quality, out);
-						image = null;
-						out.flush();
-						Log.d(TAG, String.format("complete file: %s", file.getAbsolutePath()));
-					} catch (IOException e) {
-						e.printStackTrace();
-					} finally {
-						if (out != null) {
-							try {
-								out.close();
-							} catch (IOException e) {
-								e.printStackTrace();
+						File file = new File(path, filename);
+						Log.d(TAG, String.format("Write to file: %s", file.getAbsolutePath()));
+						FileOutputStream out = null;
+						try {
+							out = new FileOutputStream(file);
+							byte[] jpg = ImageUtilities.compressYuvImage2Jpeg(frame.nv21, format, quality, width, height);
+							reuseNv21.recycle(frame.nv21);
+							frame.nv21 = null;
+							out.write(jpg);
+							out.flush();
+							Log.d(TAG, String.format("complete file: %s", file.getAbsolutePath()));
+						} catch (IOException e) {
+							e.printStackTrace();
+						} finally {
+							if (out != null) {
+								try {
+									out.close();
+								} catch (IOException e) {
+									e.printStackTrace();
+								}
 							}
+						}
+					} catch (Throwable e) {
+						if (onErrorListener != null) {
+							onErrorListener.onError(e);
+						} else {
+							e.printStackTrace();
 						}
 					}
 				}
@@ -168,12 +186,15 @@ public class JpegVideoRecorder {
 	}
 	
 	public void putFrame(byte[] nv21, long time) {
-		byte[] buff = new byte[nv21.length];
 		Log.d(TAG, "raw len:" + nv21.length);
-		System.arraycopy(nv21, 0, buff, 0, nv21.length);
 		if (time - this.prevTime > this.interval) {
 			FrameInformation frame = new FrameInformation();
-			frame.nv21 = buff;
+			frame.nv21 = this.reuseNv21.get();
+			if (frame.nv21 == null) {
+				frame.nv21 = new byte[nv21.length];
+			}
+			System.arraycopy(nv21, 0, frame.nv21, 0, frame.nv21.length);
+			nv21 = null;
 			frame.sysTime = time;
 			synchronized (this.processQ) {
 				this.processQ.offer(frame);
@@ -189,5 +210,13 @@ public class JpegVideoRecorder {
 	
 	public boolean isRecording() {
 		return this.recording;
+	}
+
+	public OnErrorListener getOnErrorListener() {
+		return onErrorListener;
+	}
+
+	public void setOnErrorListener(OnErrorListener onErrorListener) {
+		this.onErrorListener = onErrorListener;
 	}
 }

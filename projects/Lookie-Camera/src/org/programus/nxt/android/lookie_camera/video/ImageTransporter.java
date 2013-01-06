@@ -48,7 +48,11 @@ public class ImageTransporter {
 	
 	private SimpleQueue<CameraCommand> sendQ;
 	
+	private ReusePool<byte[]> reuseNv21 = new ReusePool<byte[]>();
+	
 	private Queue<ImageInformation> processQ = new LinkedList<ImageInformation>();
+	
+	private OnErrorListener onErrorListener;
 	
 	private boolean processing;
 	
@@ -58,25 +62,33 @@ public class ImageTransporter {
 		
 		@Override
 		public void run() {
-			while (processing) {
-				while (processing && processQ.isEmpty()) {
-					Thread.yield();
+			try {
+				while (processing) {
+					while (processing && processQ.isEmpty()) {
+						Thread.yield();
+					}
+					
+					while (!processQ.isEmpty()) {
+						ImageInformation ii = null;
+						synchronized (processQ) {
+							ii = processQ.poll();
+						}
+						if (ii != null) {
+							this.sendImage(ii);
+							ii = null;
+						}
+						Thread.yield();
+					}
 				}
-				
-				while (!processQ.isEmpty()) {
-					ImageInformation ii = null;
-					synchronized (processQ) {
-						ii = processQ.poll();
-					}
-					if (ii != null) {
-						this.sendImage(ii);
-						ii = null;
-					}
-					Thread.yield();
+				this.prevDataLength = 0;
+				this.prevSentTime = 0;
+			} catch (Throwable e) {
+				if (onErrorListener != null) {
+					onErrorListener.onError(e);
+				} else {
+					e.printStackTrace();
 				}
 			}
-			this.prevDataLength = 0;
-			this.prevSentTime = 0;
 		}
 		
 		private void sendImage(ImageInformation ii) {
@@ -114,7 +126,10 @@ public class ImageTransporter {
 	}
 	
 	public void transportFrame(byte[] nv21, int srcWidth, int srcHeight, int dstWidth, int dstHeight, long time, int format, int quality) {
-		byte[] buff = new byte[nv21.length];
+		byte[] buff = this.reuseNv21.get();
+		if (buff == null) {
+			buff = new byte[nv21.length];
+		}
 		System.arraycopy(nv21, 0, buff, 0, nv21.length);
 		nv21 = null;
 		ImageInformation ii = new ImageInformation();
@@ -126,6 +141,8 @@ public class ImageTransporter {
 		ii.format = format;
 		ii.quality = quality;
 		ii.sysTime = time;
+		
+		this.reuseNv21.recycle(buff);
 		synchronized (this.processQ) {
 			this.processQ.offer(ii);
 		}
@@ -133,5 +150,13 @@ public class ImageTransporter {
 	
 	public void stop() {
 		this.processing = false;
+	}
+
+	public OnErrorListener getOnErrorListener() {
+		return onErrorListener;
+	}
+
+	public void setOnErrorListener(OnErrorListener onErrorListener) {
+		this.onErrorListener = onErrorListener;
 	}
 }

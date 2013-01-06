@@ -30,7 +30,7 @@
             android:name="org.programus.nxt.android.lookie_camera.activites.MainActivity"
             android:label="@string/app_name"
             android:launchMode="singleInstance"
-            android:screenOrientation="landscape" >
+            android:screenOrientation="landscape">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
@@ -46,11 +46,11 @@
         <activity
             android:name="org.programus.nxt.android.lookie_camera.activites.VideoSelectActivity"
             android:label="@string/title_activity_video_select"
-            android:launchMode="singleInstance" >
+            android:launchMode="singleInstance" android:process="@string/player_process">
         </activity>
         <activity
             android:name=".activites.VideoPlayActivity"
-            android:label="@string/title_activity_video_play" android:screenOrientation="landscape" android:launchMode="singleInstance">
+            android:label="@string/title_activity_video_play" android:screenOrientation="landscape" android:launchMode="singleInstance" android:process="@string/player_process">
         </activity>
     </application>
 

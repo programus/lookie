@@ -223,9 +223,13 @@ public class MainActivity extends Activity {
 				}
 				case Constants.CAMERA: {
 					byte[] imageData = cmd.getImageData();
-					Bitmap bmp = p.extractBitmap(imageData, cmd.getWidth(), cmd.getHeight(), cmd.getFormat());
-					p.displayCameraPreview(bmp, cmd.getWidth(), cmd.getHeight());
-					bmp.recycle();
+					if (imageData != null) {
+						Bitmap bmp = p.extractBitmap(imageData, cmd.getWidth(), cmd.getHeight(), cmd.getFormat());
+						p.displayCameraPreview(bmp, cmd.getWidth(), cmd.getHeight());
+						if (bmp != null) {
+							bmp.recycle();
+						}
+					}
 					break;
 				}
 				case Constants.SIZE:
@@ -241,6 +245,7 @@ public class MainActivity extends Activity {
 						p.setRecordState(MainActivity.RECORD_STATE_RECORDING);
 					} else {
 						// failed... :-(
+						// or stopped.
 						p.setRecordState(MainActivity.RECORD_STATE_STOPPED);
 					}
 					break;

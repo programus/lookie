@@ -31,6 +31,7 @@ public class ImageUtilities {
 	
 	public static byte[] compressYuvImage2Jpeg(byte[] data, int format, int quality, int width, int height) {
 		YuvImage yuvImage = new YuvImage(data, format, width, height, null);
+		data = null;
 		Rect rect = new Rect(0, 0, width, height);
 		ByteArrayOutputStream out = new ByteArrayOutputStream();
 		yuvImage.compressToJpeg(rect, quality, out);

@@ -19,6 +19,7 @@ import org.programus.nxt.android.lookie_camera.services.MainService;
 import org.programus.nxt.android.lookie_camera.utils.Logger;
 import org.programus.nxt.android.lookie_camera.video.ImageTransporter;
 import org.programus.nxt.android.lookie_camera.video.JpegVideoRecorder;
+import org.programus.nxt.android.lookie_camera.video.OnErrorListener;
 import org.programus.nxt.android.lookie_camera.video.VideoInformation;
 
 import android.annotation.SuppressLint;
@@ -67,6 +68,9 @@ public class MainActivity extends Activity {
 	private SurfaceHolder sHolder;
 	private Camera camera;
 	private ImageTransporter imgTransporter;
+	
+	private final static int BUFF_NUM = 2;
+	private byte[][] yuvBuffers = new byte[BUFF_NUM][];
 	
 	private MediaRecorder recorder;
 	private boolean audioRecording;
@@ -156,6 +160,7 @@ public class MainActivity extends Activity {
 //						p.stopRecording();
 						p.stopVideoRecording();
 						p.stopAudioRecording();
+						p.feedbackRecordResult();
 					}
 					break;
 				case Constants.FOCUS:
@@ -276,11 +281,44 @@ public class MainActivity extends Activity {
 		@Override
 		public void onPreviewFrame(byte[] data, Camera camera) {
 			long time = System.currentTimeMillis();
-			Log.d(TAG, "preview frame:" + time);
-			imgTransporter.transportFrame(data, origSize.x, origSize.y, sendSize.x, sendSize.y, time, previewFormat, sendQuality);
-			if (vrecorder.isRecording()) {
-				vrecorder.putFrame(data, time);
+			Log.d(TAG, String.format("preview frame: %s, %d", data, time));
+			if (data != null) {
+				try {
+					imgTransporter.transportFrame(data, origSize.x, origSize.y, sendSize.x, sendSize.y, time, previewFormat, sendQuality);
+					if (vrecorder.isRecording()) {
+						vrecorder.putFrame(data, time);
+					}
+				} catch (Throwable e) {
+					sendStopRecordingMessage();
+					e.printStackTrace();
+				}
+			} else {
+				sendStopRecordingMessage();
 			}
+			Log.d(TAG, String.format("previewed frame: %s, %d", data, time));
+			camera.addCallbackBuffer(data);
+		}
+		
+	};
+	
+	private void sendStopRecordingMessage() {
+		CameraCommand cmd = new CameraCommand();
+		cmd.setCommand(Constants.RECORD);
+		cmd.setFormat(0);
+		Bundle b = new Bundle();
+		b.putSerializable(Constants.KEY_CAM_CMD, cmd);
+		Message msg = new Message();
+		msg.what = Constants.MSG_WHAT_CAM_READ;
+		msg.setData(b);
+		handler.sendMessage(msg);
+		
+	}
+	
+	private OnErrorListener videoProcessErrorListener = new OnErrorListener() {
+		@Override
+		public void onError(Throwable e) {
+			sendStopRecordingMessage();
+			e.printStackTrace();
 		}
 	};
 	
@@ -315,7 +353,11 @@ public class MainActivity extends Activity {
 			this.imgTransporter.start();
 			try {
 				camera.setPreviewDisplay(sHolder);
-				camera.setPreviewCallback(camPreviewCallback);
+//				camera.setPreviewCallback(camPreviewCallback);
+				camera.setPreviewCallbackWithBuffer(camPreviewCallback);
+				for (byte[] buff : this.yuvBuffers) {
+					camera.addCallbackBuffer(buff);
+				}
 				camera.startPreview();
 				logger.log("Start cam preview");
 			} catch (IOException e) {
@@ -337,6 +379,15 @@ public class MainActivity extends Activity {
 			}
 		}
 		params.setPreviewSize(this.origSize.x, this.origSize.y);
+		
+		int bufferSize = this.origSize.x * this.origSize.y * 3;
+		bufferSize = ((bufferSize & 0x01) == 0) ? bufferSize >> 1 : (bufferSize >> 1) + 1;
+		for (int i = 0; i < this.yuvBuffers.length; i++) {
+			byte[] buff = yuvBuffers[i];
+			if (buff == null || buff.length < bufferSize) {
+				this.yuvBuffers[i] = new byte[bufferSize + 1];
+			}
+		}
 		
 //		this.profile = CamcorderProfile.get(CamcorderProfile.QUALITY_HIGH);
 		this.setupDefaultSendSize(this.origSize.x, this.origSize.y);
@@ -508,7 +559,7 @@ public class MainActivity extends Activity {
 	}
 	
 	private void stopAudioRecording() {
-		if (this.audioRecording) {
+		if (this.recorder != null && this.audioRecording) {
 			this.recorder.stop();
 			this.recorder.release();
 			this.recorder = null;
@@ -706,6 +757,8 @@ public class MainActivity extends Activity {
 		
 		this.imgTransporter = new ImageTransporter(this.imageQ);
 		this.vrecorder = new JpegVideoRecorder();
+		this.imgTransporter.setOnErrorListener(videoProcessErrorListener);
+		this.vrecorder.setOnErrorListener(videoProcessErrorListener);
 		
 		this.sv = (SurfaceView) this.findViewById(R.id.previewSurface);
 		this.sHolder = this.sv.getHolder();
@@ -745,6 +798,8 @@ public class MainActivity extends Activity {
 		Intent intent = new Intent(this.getApplicationContext(), MainService.class);
 		this.stopService(intent);
 		this.serviceStarted = false;
+		this.stopVideoRecording();
+		this.stopAudioRecording();
 		this.stopCameraPreview();
 		if (this.receiver != null) {
 			this.receiver.end();
