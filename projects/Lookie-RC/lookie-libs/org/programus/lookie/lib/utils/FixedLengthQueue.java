@@ -40,8 +40,9 @@ public class FixedLengthQueue<E> implements SimpleQueue<E> {
 		synchronized(this) {
 			E ret = null;
 			if (!this.isEmpty()) {
-				ret = (E) data[outp++];
-				outp = fixp(outp);
+				ret = (E) data[outp];
+				data[outp] = null;
+				outp = fixp(outp + 1);
 			}
 			return ret;
 		}
