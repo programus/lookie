@@ -9,19 +9,20 @@ import android.os.Handler;
 import android.os.Message;
 import android.util.Log;
 
-public class CommandReceiver implements Runnable {
+public class CommandReader implements Runnable {
 	private final static String TAG = "Reader";
 	private boolean running = true;
 	
 	private Handler handler;
 	private SimpleQueue<CameraCommand> readQ = DataBuffer.getInstance().getReadQueue();
 	
-	public CommandReceiver(Handler handler) {
+	public CommandReader(Handler handler) {
 		this.handler = handler;
 	}
 
 	@Override
 	public void run() {
+		this.running = true;
 		while (this.running) {
 			CameraCommand cmd = null;
 			while (this.readQ.isEmpty() && this.running) {

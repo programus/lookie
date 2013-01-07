@@ -13,9 +13,9 @@ import org.programus.lookie.lib.utils.Constants;
 import org.programus.lookie.lib.utils.MathUtil;
 import org.programus.lookie.lib.utils.SimpleQueue;
 import org.programus.nxt.android.lookie_camera.R;
-import org.programus.nxt.android.lookie_camera.comm.CommandReceiver;
+import org.programus.nxt.android.lookie_camera.comm.CommandReader;
 import org.programus.nxt.android.lookie_camera.comm.DataBuffer;
-import org.programus.nxt.android.lookie_camera.services.MainService;
+import org.programus.nxt.android.lookie_camera.comm.RemoteCommunicator;
 import org.programus.nxt.android.lookie_camera.utils.Logger;
 import org.programus.nxt.android.lookie_camera.video.ImageTransporter;
 import org.programus.nxt.android.lookie_camera.video.JpegVideoRecorder;
@@ -26,7 +26,6 @@ import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.graphics.ImageFormat;
 import android.graphics.Point;
 import android.hardware.Camera;
@@ -54,10 +53,6 @@ import android.widget.ToggleButton;
 
 public class MainActivity extends Activity {
 	private final static String TAG = "Main";
-	private final static String PREFS_NAME = "Lookie-Eye.Main";
-	private final static String KEY_SVC_STATE = "Service.State";
-	private final static String KEY_CAM_STATE = "Camera.State";
-	private final static String KEY_LOG_TEXT = "Log.Text";
 	
 	private ToggleButton toggleServiceButton;
 	private TextView logText;
@@ -93,12 +88,12 @@ public class MainActivity extends Activity {
 	private SensorManager sensorMgr;
 	private Sensor sensor;
 	
-	private CommandReceiver receiver;
+	private CommandReader commandReader;
 	
 	private Queue<CameraCommand> sendQ = DataBuffer.getInstance().getSendQueue();
 	private SimpleQueue<CameraCommand> imageQ = DataBuffer.getInstance().getImageQueue();
 	
-	private boolean serviceStarted;
+	private RemoteCommunicator communicator;
 	private boolean cameraStarted;
 	
 	private Handler handler = new UIHandler(this);
@@ -188,11 +183,11 @@ public class MainActivity extends Activity {
 		@Override
 		public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
 			if (isChecked) {
-				if (!serviceStarted && turnOnBt()) {
+				if (!communicator.isStarted() && turnOnBt()) {
 					beginShow();
 				}
 			} else {
-				if (serviceStarted) {
+				if (communicator.isStarted()) {
 					endShow();
 				}
 			}
@@ -771,38 +766,33 @@ public class MainActivity extends Activity {
 		this.sensorMgr = (SensorManager) this.getSystemService(SENSOR_SERVICE);
 		this.sensor = sensorMgr.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
 		
-		SharedPreferences.Editor editor = this.getSharedPreferences(PREFS_NAME, MODE_PRIVATE).edit();
-		editor.putString(KEY_LOG_TEXT, "");
-		editor.commit();
+		this.communicator = new RemoteCommunicator();
 	}
 	
 	private void beginShow() {
-		Intent intent = new Intent(this.getApplicationContext(), MainService.class);
-		intent.putExtra(MainService.START_FLAG_KEY, MainService.START_FLAG_START);
-		this.startService(intent);
-		this.serviceStarted = true;
-		this.startThreads();
-		logger.log("Service started.");
+		if (!this.communicator.isStarted()) {
+			this.communicator.start();
+			this.startThreads();
+			logger.log("Service started.");
+		}
 	}
 	
 	private void startThreads() {
-		if (this.receiver == null) {
-			this.receiver = new CommandReceiver(this.handler);
+		if (this.commandReader == null) {
+			this.commandReader = new CommandReader(this.handler);
 		}
-		Thread t = new Thread(this.receiver, "receive command");
+		Thread t = new Thread(this.commandReader, "read command");
 		t.setDaemon(true);
 		t.start();
 	}
 	
 	private void endShow() { 
-		Intent intent = new Intent(this.getApplicationContext(), MainService.class);
-		this.stopService(intent);
-		this.serviceStarted = false;
+		this.communicator.end();
 		this.stopVideoRecording();
 		this.stopAudioRecording();
 		this.stopCameraPreview();
-		if (this.receiver != null) {
-			this.receiver.end();
+		if (this.commandReader != null) {
+			this.commandReader.end();
 		}
 		this.toggleServiceButton.setChecked(false);
 		logger.log("Service stopped.");
@@ -843,22 +833,12 @@ public class MainActivity extends Activity {
 	@Override
 	protected void onResume() {
 		super.onResume();
-		SharedPreferences sp = this.getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
-		this.serviceStarted = sp.getBoolean(KEY_SVC_STATE, false);
-		this.cameraStarted = sp.getBoolean(KEY_CAM_STATE, false);
-		this.logText.setText(sp.getString(KEY_LOG_TEXT, ""));
-		this.toggleServiceButton.setChecked(this.serviceStarted);
 	}
 
 	@Override
 	protected void onPause() {
 		super.onPause();
 		this.endShow();
-		SharedPreferences.Editor editor = this.getSharedPreferences(PREFS_NAME, MODE_PRIVATE).edit();
-		editor.putBoolean(KEY_SVC_STATE, serviceStarted);
-		editor.putBoolean(KEY_CAM_STATE, cameraStarted);
-		editor.putString(KEY_LOG_TEXT, this.logText.getText().toString());
-		editor.commit();
 	}
 
 	@Override
