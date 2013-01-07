@@ -123,5 +123,6 @@ public class CameraBtCommunicator {
 		this.receiver.end();
 		Thread.yield();
 		this.socket.close();
+		this.socket = null;
 	}
 }
