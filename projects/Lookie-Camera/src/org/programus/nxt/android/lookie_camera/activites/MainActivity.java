@@ -20,6 +20,7 @@ import org.programus.nxt.android.lookie_camera.utils.Logger;
 import org.programus.nxt.android.lookie_camera.video.ImageTransporter;
 import org.programus.nxt.android.lookie_camera.video.JpegVideoRecorder;
 import org.programus.nxt.android.lookie_camera.video.OnErrorListener;
+import org.programus.nxt.android.lookie_camera.video.OnInfoListener;
 import org.programus.nxt.android.lookie_camera.video.VideoInformation;
 
 import android.annotation.SuppressLint;
@@ -106,7 +107,9 @@ public class MainActivity extends Activity {
 		@Override
 		public void handleMessage(Message msg) {
 			Bundle b = msg.getData();
-			switch (msg.what) {
+			int what = msg.what;
+			msg.recycle();
+			switch (what) {
 			case Constants.MSG_WHAT_LOG: {
 				String text = b.getString(Constants.KEY_LOG);
 				p.logText.append(text);
@@ -150,7 +153,7 @@ public class MainActivity extends Activity {
 //						p.startRecording();
 						p.startVideoRecording();
 						p.startAudioRecording();
-						p.feedbackRecordResult();
+//						p.feedbackRecordResult();
 					} else {
 //						p.stopRecording();
 						p.stopVideoRecording();
@@ -264,10 +267,9 @@ public class MainActivity extends Activity {
 			float angle = MathUtil.calculateAngle(event.values);
 			b.putFloat(Constants.KEY_ANGLE, angle);
 			
-			Message msg = new Message();
-			msg.what = Constants.MSG_WHAT_GET_ANGLE;
+			Message msg = Message.obtain(handler, Constants.MSG_WHAT_GET_ANGLE);
 			msg.setData(b);
-			handler.sendMessage(msg);
+			msg.sendToTarget();
 			stopAngleDetection();
 		}
 	};
@@ -302,18 +304,35 @@ public class MainActivity extends Activity {
 		cmd.setFormat(0);
 		Bundle b = new Bundle();
 		b.putSerializable(Constants.KEY_CAM_CMD, cmd);
-		Message msg = new Message();
-		msg.what = Constants.MSG_WHAT_CAM_READ;
+		Message msg = Message.obtain(handler, Constants.MSG_WHAT_CAM_READ);
 		msg.setData(b);
-		handler.sendMessage(msg);
-		
+		msg.sendToTarget();
 	}
 	
-	private OnErrorListener videoProcessErrorListener = new OnErrorListener() {
+	private OnErrorListener<ImageTransporter> videoProcessErrorListener = new OnErrorListener<ImageTransporter>() {
 		@Override
-		public void onError(Throwable e) {
+		public void onError(ImageTransporter owner, Throwable e) {
 			sendStopRecordingMessage();
 			e.printStackTrace();
+		}
+	};
+	
+	private OnErrorListener<JpegVideoRecorder> videoRecordErrorListener = new OnErrorListener<JpegVideoRecorder>() {
+		@Override
+		public void onError(JpegVideoRecorder owner, Throwable e) {
+			sendStopRecordingMessage();
+			e.printStackTrace();
+		}
+	};
+	
+	private OnInfoListener<JpegVideoRecorder> videoRecordInfoListener = new OnInfoListener<JpegVideoRecorder>() {
+		@Override
+		public void onInfo(JpegVideoRecorder owner, int what, int extra) {
+			switch (what) {
+			case JpegVideoRecorder.INFO_WHAT_RECORD_STARTED:
+				feedbackRecordResult();
+				break;
+			}
 		}
 	};
 	
@@ -751,9 +770,10 @@ public class MainActivity extends Activity {
 		this.camButton.setOnClickListener(camListener);
 		
 		this.imgTransporter = new ImageTransporter(this.imageQ);
-		this.vrecorder = new JpegVideoRecorder();
+		this.vrecorder = new JpegVideoRecorder(this);
 		this.imgTransporter.setOnErrorListener(videoProcessErrorListener);
-		this.vrecorder.setOnErrorListener(videoProcessErrorListener);
+		this.vrecorder.setOnErrorListener(videoRecordErrorListener);
+		this.vrecorder.setOnInfoListener(videoRecordInfoListener);
 		
 		this.sv = (SurfaceView) this.findViewById(R.id.previewSurface);
 		this.sHolder = this.sv.getHolder();

@@ -52,7 +52,7 @@ public class ImageTransporter {
 	
 	private Queue<ImageInformation> processQ = new LinkedList<ImageInformation>();
 	
-	private OnErrorListener onErrorListener;
+	private OnErrorListener<ImageTransporter> onErrorListener;
 	
 	private boolean processing;
 	
@@ -84,7 +84,7 @@ public class ImageTransporter {
 				this.prevSentTime = 0;
 			} catch (Throwable e) {
 				if (onErrorListener != null) {
-					onErrorListener.onError(e);
+					onErrorListener.onError(ImageTransporter.this, e);
 				} else {
 					e.printStackTrace();
 				}
@@ -152,11 +152,11 @@ public class ImageTransporter {
 		this.processing = false;
 	}
 
-	public OnErrorListener getOnErrorListener() {
+	public OnErrorListener<ImageTransporter> getOnErrorListener() {
 		return onErrorListener;
 	}
 
-	public void setOnErrorListener(OnErrorListener onErrorListener) {
+	public void setOnErrorListener(OnErrorListener<ImageTransporter> onErrorListener) {
 		this.onErrorListener = onErrorListener;
 	}
 }

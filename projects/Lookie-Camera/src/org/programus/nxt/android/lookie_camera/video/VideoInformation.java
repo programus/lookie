@@ -172,9 +172,11 @@ public class VideoInformation implements Serializable{
 				opts.inScaled = true;
 				opts.inSampleSize = 4;
 				Bitmap bmp = BitmapFactory.decodeFile(img.getAbsolutePath(), opts);
-				Log.d(TAG, String.format("bmp size: %d x %d", bmp.getWidth(), bmp.getHeight()));
-				this.previewImage = Bitmap.createScaledBitmap(bmp, this.width >> 2, this.height >> 2, true);
-				bmp.recycle();
+				if (bmp != null) {
+					Log.d(TAG, String.format("bmp size: %d x %d", bmp.getWidth(), bmp.getHeight()));
+					this.previewImage = Bitmap.createScaledBitmap(bmp, this.width >> 2, this.height >> 2, true);
+					bmp.recycle();
+				}
 			}
 		}
 		return this.previewImage;

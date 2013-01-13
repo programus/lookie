@@ -2,29 +2,68 @@ package org.programus.nxt.android.lookie_camera.video;
 
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
 import java.io.PrintStream;
 import java.util.LinkedList;
 import java.util.Queue;
 
 import org.programus.lookie.lib.utils.Constants;
+import org.programus.nxt.android.lookie_camera.services.IFrameTransporter;
+import org.programus.nxt.android.lookie_camera.services.ImageSaveService;
 
+import android.content.ComponentName;
+import android.content.Context;
+import android.content.Intent;
+import android.content.ServiceConnection;
 import android.graphics.ImageFormat;
 import android.graphics.Rect;
+import android.os.Bundle;
+import android.os.Handler;
+import android.os.IBinder;
+import android.os.Message;
+import android.os.Messenger;
+import android.os.RemoteException;
 import android.util.Log;
 
 public class JpegVideoRecorder {
+	public final static int INFO_WHAT_RECORD_STARTED = 1;
+	public final static int MSG_WHAT_ERROR = 1;
+	public final static String KEY_ERROR = "Key.Error";
+	
 	private final static String TAG = "JPEGVRecorder";
 	private static class FrameInformation {
 		private byte[] nv21;
 		private long sysTime;
 	}
 	
+	private static class ReplyHandler extends Handler {
+		private JpegVideoRecorder p;
+		public ReplyHandler(JpegVideoRecorder parent) {
+			this.p = parent;
+		}
+		@Override
+		public void handleMessage(Message msg) {
+			switch (msg.what) {
+			case MSG_WHAT_ERROR:
+				if (p.onErrorListener != null) {
+					Bundle b = msg.getData();
+					Throwable e = (Throwable) b.getSerializable(KEY_ERROR);
+					p.onErrorListener.onError(p, e);
+				}
+				break;
+			default:
+				super.handleMessage(msg);
+				break;
+			}
+			msg.recycle();
+		}
+	}
+	
 	private ReusePool<byte[]> reuseNv21 = new ReusePool<byte[]>();
 	
 	private boolean recording;
-	private OnErrorListener onErrorListener;
+	private Context context;
+	private OnErrorListener<JpegVideoRecorder> onErrorListener;
+	private OnInfoListener<JpegVideoRecorder> onInfoListener;
 	
 	private Queue<FrameInformation> processQ = new LinkedList<FrameInformation>();
 	
@@ -41,17 +80,30 @@ public class JpegVideoRecorder {
 	
 	private File path;
 	
+	private IFrameTransporter transporter;
+	private Messenger replyTo = new Messenger(new ReplyHandler(this));
+	private ServiceConnection connection = new ServiceConnection() {
+		@Override
+		public void onServiceConnected(ComponentName name, IBinder service) {
+			transporter = IFrameTransporter.Stub.asInterface(service);
+			startProcessThread();
+		}
+		@Override
+		public void onServiceDisconnected(ComponentName name) {
+			transporter = null;
+		}
+	};
+	
 	private Runnable frameProcess = new Runnable() {
 		private long prevSentTime;
 		private int prevDataLength;
 		
 		@Override
 		public void run() {
+			int count = 0;
+			long startTime = -1;
+			long endTime = -1;
 			try {
-				int count = 0;
-				long startTime = -1;
-				long endTime = -1;
-				ThreadGroup tg = new ThreadGroup("File write threads");
 				while (recording) {
 					while (recording && processQ.isEmpty()) {
 						Thread.yield();
@@ -62,7 +114,6 @@ public class JpegVideoRecorder {
 						synchronized (processQ) {
 							frame = processQ.poll();
 							Log.d(TAG, "Q len:" + processQ.size());
-							Log.d(TAG, "Files: " + tg.activeCount());
 						}
 						if (frame != null) {
 							if (startTime < 0) {
@@ -78,62 +129,31 @@ public class JpegVideoRecorder {
 								endTime = frame.sysTime;
 								this.prevDataLength = frame.nv21.length;
 								this.prevSentTime = frame.sysTime;
-								this.writeFrame2File(frame, String.format("Frame_%010d.jpg", count++), tg);
+								File file = new File(path, String.format("Frame_%010d.jpg", count++));
+								sendFile4Writing(frame, file.getAbsolutePath());
+								reuseNv21.recycle(frame.nv21);
+								frame = null;
 							}
 						}
 					}
 				}
-				this.writeInformation2File(count, endTime - startTime);
-				this.prevDataLength = 0;
-				this.prevSentTime = 0;
 			} catch (Throwable e) {
 				if (onErrorListener != null) {
-					onErrorListener.onError(e);
+					onErrorListener.onError(JpegVideoRecorder.this, e);
 				} else {
 					e.printStackTrace();
 				}
+			} finally {
+				synchronized(processQ) {
+					processQ.clear();
+				}
+				unbindFileService();
+				this.writeInformation2File(count, endTime - startTime);
+				this.prevDataLength = 0;
+				this.prevSentTime = 0;
 			}
 		}
-		
-		private void writeFrame2File(final FrameInformation frame, final String filename, final ThreadGroup group) {
-			Thread t = new Thread(group, new Runnable() {
-				@Override
-				public void run() {
-					try {
-						File file = new File(path, filename);
-						Log.d(TAG, String.format("Write to file: %s", file.getAbsolutePath()));
-						FileOutputStream out = null;
-						try {
-							out = new FileOutputStream(file);
-							byte[] jpg = ImageUtilities.compressYuvImage2Jpeg(frame.nv21, format, quality, width, height);
-							reuseNv21.recycle(frame.nv21);
-							frame.nv21 = null;
-							out.write(jpg);
-							out.flush();
-							Log.d(TAG, String.format("complete file: %s", file.getAbsolutePath()));
-						} catch (IOException e) {
-							e.printStackTrace();
-						} finally {
-							if (out != null) {
-								try {
-									out.close();
-								} catch (IOException e) {
-									e.printStackTrace();
-								}
-							}
-						}
-					} catch (Throwable e) {
-						if (onErrorListener != null) {
-							onErrorListener.onError(e);
-						} else {
-							e.printStackTrace();
-						}
-					}
-				}
-			}, "Write 2 file thread");
-			t.start();
-		}
-		
+
 		private void writeInformation2File(int count, long dt) {
 			double fps = count * 1000. / dt;
 			File file = new File(path, VideoInformation.INFO_FILENAME);
@@ -154,6 +174,45 @@ public class JpegVideoRecorder {
 			}
 		}
 	};
+	
+	private void sendFile4Writing(FrameInformation frame, String filename) throws RemoteException {
+		ParcelableFrame pf = new ParcelableFrame();
+		pf.setFilename(filename);
+		pf.setData(frame.nv21);
+		pf.setQuality(quality);
+		pf.setFormat(format);
+		pf.setWidth(width);
+		pf.setHeight(height);
+		pf.setReplyTo(replyTo);
+		if (this.transporter != null) {
+			this.transporter.sendFrame(pf);
+		}
+	}
+	
+	private void bindFileService() {
+		Intent intent = new Intent(context, ImageSaveService.class);
+		context.bindService(intent, connection, Context.BIND_AUTO_CREATE);
+	}
+	
+	private void unbindFileService() {
+		if (this.transporter != null) {
+			context.unbindService(connection);
+		}
+	}
+	
+	private void startProcessThread() {
+		this.recording = true;
+		Thread t = new Thread(this.frameProcess, "JPEG Record Thread");
+		t.setDaemon(true);
+		t.start();
+		if (this.onInfoListener != null) {
+			this.onInfoListener.onInfo(this, INFO_WHAT_RECORD_STARTED, recording ? 1 : 0);
+		}
+	}
+	
+	public JpegVideoRecorder(Context context) {
+		this.context = context;
+	}
 	
 	public void setOutputFilePath(File path) {
 		this.path = path;
@@ -179,10 +238,7 @@ public class JpegVideoRecorder {
 	}
 	
 	public void startRecord() {
-		this.recording = true;
-		Thread t = new Thread(this.frameProcess, "JPEG Record Thread");
-		t.setDaemon(true);
-		t.start();
+		this.bindFileService();
 	}
 	
 	public void putFrame(byte[] nv21, long time) {
@@ -212,11 +268,19 @@ public class JpegVideoRecorder {
 		return this.recording;
 	}
 
-	public OnErrorListener getOnErrorListener() {
+	public OnErrorListener<JpegVideoRecorder> getOnErrorListener() {
 		return onErrorListener;
 	}
 
-	public void setOnErrorListener(OnErrorListener onErrorListener) {
+	public void setOnErrorListener(OnErrorListener<JpegVideoRecorder> onErrorListener) {
 		this.onErrorListener = onErrorListener;
+	}
+
+	public OnInfoListener<JpegVideoRecorder> getOnInfoListener() {
+		return onInfoListener;
+	}
+
+	public void setOnInfoListener(OnInfoListener<JpegVideoRecorder> onInfoListener) {
+		this.onInfoListener = onInfoListener;
 	}
 }

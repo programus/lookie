@@ -39,8 +39,8 @@
         </activity>
 
         <service
-            android:name="org.programus.nxt.android.lookie_camera.services.MainService"
-            android:icon="@android:drawable/ic_menu_camera" >
+            android:name=".services.ImageSaveService"
+            android:icon="@android:drawable/ic_menu_camera" android:exported="false" android:process="@string/record_process">
         </service>
 
         <activity

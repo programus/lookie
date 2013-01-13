@@ -38,6 +38,7 @@ public class ImageUtilities {
 		byte[] ret = out.toByteArray();
 		try {
 			out.close();
+			out = null;
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
