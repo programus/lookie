@@ -112,10 +112,9 @@ public class CameraBtCommunicator {
 		b.putInt(Constants.KEY_CAMERA_CONNECT_STATUS, device != null ? Constants.CONN_STATUS_CONNECTED : Constants.CONN_STATUS_DISCONNECTED);
 		b.putString(Constants.KEY_CAMERA_DEVICE, device != null ? device.toString() : "null");
 		
-		Message msg = new Message();
+		Message msg = Message.obtain(handler, Constants.MSG_WHAT_CAMERA_CONNECT);
 		msg.setData(b);
-		msg.what = Constants.MSG_WHAT_CAMERA_CONNECT;
-		handler.sendMessage(msg);
+		msg.sendToTarget();
 	}
 	
 	public void end() throws IOException {

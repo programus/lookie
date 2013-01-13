@@ -52,20 +52,18 @@ public class CameraCommandReceiver implements Runnable {
 		b.putSerializable(Constants.KEY_EXCEPTION, e);
 		b.putString(Constants.KEY_MESSAGE, "Error when read camera command.");
 		
-		Message msg = new Message();
+		Message msg = Message.obtain(handler, Constants.MSG_WHAT_EXCEPTION);
 		msg.setData(b);
-		msg.what = Constants.MSG_WHAT_EXCEPTION;
-		handler.sendMessage(msg);
+		msg.sendToTarget();
 	}
 	
 	private void notifyCameraCommand(CameraCommand data) {
 		Bundle b = new Bundle();
 		b.putSerializable(Constants.KEY_CAM_CMD, data);
 		
-		Message msg = new Message();
+		Message msg = Message.obtain(handler, Constants.MSG_WHAT_CAM_READ);
 		msg.setData(b);
-		msg.what = Constants.MSG_WHAT_CAM_READ;
-		handler.sendMessage(msg);
+		msg.sendToTarget();
 	}
 	
 	public void end() {

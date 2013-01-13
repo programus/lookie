@@ -107,9 +107,7 @@ public class MainActivity extends Activity {
 		@Override
 		public void handleMessage(Message msg) {
 			Bundle b = msg.getData();
-			int what = msg.what;
-			msg.recycle();
-			switch (what) {
+			switch (msg.what) {
 			case Constants.MSG_WHAT_LOG: {
 				String text = b.getString(Constants.KEY_LOG);
 				p.logText.append(text);
@@ -178,6 +176,8 @@ public class MainActivity extends Activity {
 				p.sendQ.offer(cmd);
 				break;
 			}
+			default:
+				super.handleMessage(msg);
 			}
 		}
 	}

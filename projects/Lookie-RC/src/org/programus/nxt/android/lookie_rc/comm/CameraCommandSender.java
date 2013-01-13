@@ -77,10 +77,9 @@ public class CameraCommandSender implements Runnable {
 		b.putSerializable(Constants.KEY_EXCEPTION, e);
 		b.putString(Constants.KEY_MESSAGE, "Error when send camera command.");
 		
-		Message msg = new Message();
+		Message msg = Message.obtain(handler, Constants.MSG_WHAT_EXCEPTION);
 		msg.setData(b);
-		msg.what = Constants.MSG_WHAT_EXCEPTION;
-		handler.sendMessage(msg);
+		msg.sendToTarget();
 	}
 	
 	public void end() {

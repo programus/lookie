@@ -52,20 +52,18 @@ public class CommandReceiver implements Runnable {
 		b.putSerializable(Constants.KEY_EXCEPTION, e);
 		b.putString(Constants.KEY_MESSAGE, "Error when read command.");
 		
-		Message msg = new Message();
+		Message msg = Message.obtain(handler, Constants.MSG_WHAT_EXCEPTION);
 		msg.setData(b);
-		msg.what = Constants.MSG_WHAT_EXCEPTION;
-		handler.sendMessage(msg);
+		msg.sendToTarget();
 	}
 	
 	private void notifyNXTData(NXTData data) {
 		Bundle b = new Bundle();
 		b.putSerializable(Constants.KEY_NXT_DATA, data);
 		
-		Message msg = new Message();
+		Message msg = Message.obtain(handler, Constants.MSG_WHAT_DATA_READ);
 		msg.setData(b);
-		msg.what = Constants.MSG_WHAT_DATA_READ;
-		handler.sendMessage(msg);
+		msg.sendToTarget();
 	}
 	
 	public void end() {

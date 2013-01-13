@@ -74,9 +74,8 @@ public class RobotBtCommunicator implements Constants{
 		Bundle b = new Bundle();
 		b.putInt(Constants.KEY_ROBOT_CONNECT_STATUS, connectStatus);
 		
-		Message msg = new Message();
+		Message msg = Message.obtain(handler, Constants.MSG_WHAT_ROBOT_CONNECT);
 		msg.setData(b);
-		msg.what = Constants.MSG_WHAT_ROBOT_CONNECT;
-		handler.sendMessage(msg);
+		msg.sendToTarget();
 	}
 }

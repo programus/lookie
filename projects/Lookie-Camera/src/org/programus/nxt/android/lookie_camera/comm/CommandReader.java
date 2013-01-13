@@ -44,10 +44,9 @@ public class CommandReader implements Runnable {
 		Bundle b = new Bundle();
 		b.putSerializable(Constants.KEY_CAM_CMD, data);
 		
-		Message msg = new Message();
+		Message msg = Message.obtain(handler, Constants.MSG_WHAT_CAM_READ);
 		msg.setData(b);
-		msg.what = Constants.MSG_WHAT_CAM_READ;
-		handler.sendMessage(msg);
+		msg.sendToTarget();
 	}
 	
 	public void end() {
